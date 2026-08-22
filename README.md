@@ -84,3 +84,5 @@ Queda publicada en https://cotizador-alfex.netlify.app
 cubicación, antes del handoff de diseño). Los levantamientos que se hayan
 hecho con ella se convierten solos al abrir esta versión: cada partida pasa a
 un recinto único conservando su cantidad ya calculada.
+
+Publicado vía GitHub + Netlify (deploy continuo).
