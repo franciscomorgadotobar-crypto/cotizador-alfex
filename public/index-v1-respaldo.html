@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1C2024">
+<title>ALFEX · Levantamiento Técnico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --bg:#EDEEF0;
+    --surface:#FFFFFF;
+    --ink:#1C2024;
+    --ink-soft:#565D66;
+    --accent:#F5A623;
+    --accent-ink:#1C2024;
+    --data:#2E6E7E;
+    --border:#D4D6DA;
+    --danger:#C1442D;
+    --ok:#2E7D5B;
+    --radius:4px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:80px;
+  }
+  .display{font-family:'Barlow Condensed',sans-serif;font-weight:800;letter-spacing:.01em;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  header.top{background:var(--ink);color:#fff;padding:18px 16px 14px;}
+  header.top .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--accent);font-weight:600;margin:0 0 4px;}
+  header.top h1{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:clamp(24px,6vw,36px);line-height:.95;margin:0;text-transform:uppercase;}
+  header.top .sub{font-size:12px;color:#9AA1AA;margin-top:6px;}
+  header.top .sub a{color:var(--accent);text-decoration:none;}
+  .nube-chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.04em;background:#2E3439;color:#9AA1AA;cursor:pointer;}
+  .nube-chip.ok{background:#1E4736;color:#8FE0B8;}
+  .nube-chip.pend{background:#4A3A16;color:#F5C76A;}
+  .nube-chip.err{background:#4A211A;color:#F0A091;}
+  .route-strip{height:6px;background-image:repeating-linear-gradient(90deg,var(--accent) 0 22px,transparent 22px 40px);margin-top:14px;}
+
+  nav.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;position:sticky;top:0;z-index:40;}
+  nav.tabs button{flex:1 0 auto;padding:13px 14px;border:none;background:none;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;}
+  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--accent);}
+  nav.tabs button:disabled{opacity:.35;cursor:not-allowed;}
+
+  main{padding:16px;max-width:1080px;margin:0 auto;}
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;}
+  .card > h2, .card > h3{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.05em;margin:0 0 12px;font-size:19px;font-weight:700;}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .card-h h2,.card-h h3{margin:0;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:19px;font-weight:700;}
+  .hint{font-size:12px;color:var(--ink-soft);line-height:1.45;}
+  .sep{height:1px;background:var(--border);margin:12px 0;}
+
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:600;margin:0 0 5px;}
+  input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--border);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:15px;background:#fff;color:var(--ink);}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;}
+  textarea{min-height:80px;resize:vertical;}
+  .grid{display:grid;gap:12px;}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
+  .field{min-width:0;}
+
+  button.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border:none;border-radius:var(--radius);background:var(--ink);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;}
+  button.btn.accent{background:var(--accent);color:var(--accent-ink);}
+  button.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--border);}
+  button.btn.danger{background:var(--danger);}
+  button.btn.sm{padding:7px 11px;font-size:14px;}
+  button.btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;}
+
+  .pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+  .pill.gray{background:#E4E6E9;color:var(--ink-soft);}
+  .pill.accent{background:#FDEBCB;color:#8A5B00;}
+  .pill.ok{background:#DCEFE5;color:var(--ok);}
+
+  /* Lista de levantamientos */
+  .lev-item{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:13px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:10px;}
+  .lev-item .t{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;line-height:1.1;text-transform:uppercase;}
+  .lev-item .m{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .lev-item .stats{font-size:11px;color:var(--ink-soft);margin-top:7px;display:flex;gap:12px;flex-wrap:wrap;}
+  .lev-actions{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .empty{text-align:center;padding:34px 16px;color:var(--ink-soft);border:1px dashed var(--border);border-radius:var(--radius);background:var(--surface);}
+
+  /* Partidas */
+  .cap-block{margin-bottom:16px;}
+  .cap-title{display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--data);border-bottom:2px solid var(--data);padding-bottom:5px;margin-bottom:10px;}
+  .partida{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-bottom:10px;overflow:hidden;}
+  .partida-h{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;background:#F7F8F9;}
+  .partida-h .cod{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ink-soft);flex-shrink:0;}
+  .partida-h .nm{flex:1;font-weight:600;font-size:14px;min-width:0;}
+  .partida-h .qt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;white-space:nowrap;}
+  .partida-h .chev{color:var(--ink-soft);font-size:12px;}
+  .partida-b{padding:12px;border-top:1px solid var(--border);display:none;}
+  .partida.open .partida-b{display:block;}
+
+  .meds{display:flex;flex-direction:column;gap:8px;}
+  .med-row{border:1px solid var(--border);border-radius:var(--radius);padding:8px;background:#FAFBFC;}
+  .med-top{display:flex;gap:8px;align-items:center;}
+  .med-top input{flex:1;min-width:0;padding:8px 9px;font-size:14px;}
+  .med-dims{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .med-dims .d{flex:1 1 72px;min-width:66px;}
+  .med-dims label{font-size:9px;letter-spacing:.06em;margin-bottom:3px;}
+  .med-dims input{padding:8px 8px;font-size:14px;text-align:right;}
+  .med-dims .par{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;text-align:right;padding:8px 0 0;white-space:nowrap;}
+  .med-row .x{background:none;border:none;color:var(--danger);font-size:19px;cursor:pointer;padding:0 6px;line-height:1;flex-shrink:0;}
+  .med-total{display:flex;justify-content:flex-end;gap:10px;align-items:baseline;margin-top:8px;font-family:'JetBrains Mono',monospace;font-weight:700;}
+
+  /* Fotos */
+  .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;margin-top:10px;}
+  .photo{position:relative;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#F2F3F5;}
+  .photo img{width:100%;height:92px;object-fit:cover;display:block;}
+  .photo .cap{width:100%;border:none;border-top:1px solid var(--border);font-size:11px;padding:5px 6px;border-radius:0;}
+  .photo .del{position:absolute;top:4px;right:4px;background:rgba(28,32,36,.82);color:#fff;border:none;border-radius:3px;width:24px;height:24px;font-size:15px;line-height:1;cursor:pointer;}
+  .photo .idx{position:absolute;top:4px;left:4px;background:var(--accent);color:var(--accent-ink);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:2px 5px;border-radius:3px;}
+  .addphoto{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;height:92px;border:1px dashed var(--border);border-radius:var(--radius);background:var(--surface);color:var(--ink-soft);font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;cursor:pointer;text-align:center;padding:4px;}
+  .addphoto span.ic{font-size:20px;}
+
+  /* Tablas genéricas */
+  table.data{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);}
+  table.data th{background:var(--ink);color:#fff;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:13px;padding:9px 8px;text-align:left;white-space:nowrap;}
+  table.data td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  table.data tr.cap-row td{background:#EEF3F4;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--data);font-size:13px;}
+  table.data td.num{text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+  table.data input{padding:6px 7px;font-size:13px;}
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);}
+
+  .tot-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--border);font-size:14px;}
+  .tot-line .v{font-family:'JetBrains Mono',monospace;font-weight:600;}
+  .tot-line.total{border-bottom:none;border-top:2px solid var(--ink);margin-top:6px;padding-top:11px;font-size:19px;font-family:'Barlow Condensed',sans-serif;font-weight:800;text-transform:uppercase;}
+  .tot-line.total .v{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;}
+
+  /* Informe en pantalla */
+  .rep{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .rep h2{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-size:22px;margin:0 0 4px;}
+  .rep h3{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;font-size:16px;letter-spacing:.06em;margin:20px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--accent);}
+  .rep p{font-size:14px;line-height:1.55;margin:0 0 8px;}
+  .rep .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px 18px;font-size:13px;}
+  .rep .kv div span{color:var(--ink-soft);text-transform:uppercase;font-size:10px;letter-spacing:.08em;display:block;font-weight:600;}
+  .rep-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+  .rep-photos figure{margin:0;}
+  .rep-photos img{width:100%;border:1px solid var(--border);border-radius:3px;display:block;}
+  .rep-photos figcaption{font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.35;}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:var(--radius);font-size:14px;z-index:200;box-shadow:0 6px 18px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;}
+
+  .sticky-bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 14px;display:none;gap:10px;justify-content:space-between;align-items:center;z-index:50;}
+  .sticky-bar.show{display:flex;}
+  .sticky-bar .info{font-size:12px;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  @media print{nav.tabs,header.top,.sticky-bar,.no-print{display:none !important;}body{background:#fff;padding:0;}}
+</style>
+</head>
+<body>
+<header class="top">
+  <p class="eyebrow">ALFEX · Obras Civiles</p>
+  <h1>Levantamiento Técnico</h1>
+  <div class="sub">Terreno → Informe → Cotización · <span id="nube-chip" class="nube-chip">·</span></div>
+  <div class="route-strip"></div>
+</header>
+
+<nav class="tabs">
+  <button data-view="list" class="active">Levantamientos</button>
+  <button data-view="ficha" data-needs-active>Ficha</button>
+  <button data-view="informe" data-needs-active>Informe</button>
+  <button data-view="cotiza" data-needs-active>Cotización</button>
+  <button data-view="config">Precios</button>
+</nav>
+
+<main>
+  <!-- ============ LISTA ============ -->
+  <section class="view active" id="view-list">
+    <div class="card">
+      <div class="card-h">
+        <h2>Levantamientos en terreno</h2>
+        <button class="btn accent" id="btn-nuevo">+ Nuevo</button>
+      </div>
+      <input type="search" id="buscar" placeholder="Buscar por obra, cliente o folio…">
+    </div>
+    <div id="lista-lev"></div>
+    <div class="card">
+      <h3>Respaldo de datos</h3>
+      <p class="hint">Todo se guarda en este dispositivo (funciona sin señal en obra). Exporta un respaldo para traspasar los levantamientos a otro equipo o para guardarlos antes de limpiar el navegador.</p>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn ghost sm" id="btn-export-json">Exportar respaldo</button>
+        <button class="btn ghost sm" id="btn-import-json">Importar respaldo</button>
+        <input type="file" id="file-import" accept="application/json" hidden>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FICHA ============ -->
+  <section class="view" id="view-ficha">
+    <div class="card">
+      <div class="card-h">
+        <h2>Antecedentes de la obra</h2>
+        <span class="pill gray mono" id="ficha-folio">—</span>
+      </div>
+      <div class="grid g2">
+        <div class="field"><label>Obra / proyecto</label><input data-f="obra" placeholder="Ej: Ampliación bodega Lo Espejo"></div>
+        <div class="field"><label>Fecha de visita</label><input type="date" data-f="fecha"></div>
+        <div class="field"><label>Cliente</label><input data-f="cliente.nombre" placeholder="Razón social"></div>
+        <div class="field"><label>RUT cliente</label><input data-f="cliente.rut" placeholder="76.123.456-7"></div>
+        <div class="field"><label>Contacto en terreno</label><input data-f="cliente.contacto"></div>
+        <div class="field"><label>Teléfono</label><input data-f="cliente.telefono" inputmode="tel"></div>
+        <div class="field"><label>Email</label><input data-f="cliente.email" inputmode="email"></div>
+        <div class="field"><label>Profesional a cargo (ALFEX)</label><input data-f="responsable"></div>
+        <div class="field"><label>Dirección</label><input data-f="direccion"></div>
+        <div class="field"><label>Comuna</label><input data-f="comuna"></div>
+        <div class="field"><label>Tipo de obra</label>
+          <select data-f="tipoObra">
+            <option value="">— Seleccionar —</option>
+            <option>Obra nueva</option><option>Ampliación</option><option>Remodelación</option>
+            <option>Reparación / mantención</option><option>Urbanización / pavimentos</option>
+            <option>Obra civil industrial</option><option>Demolición</option><option>Otro</option>
+          </select>
+        </div>
+        <div class="field"><label>Plazo estimado (días corridos)</label><input type="number" min="0" data-f="plazoDias" inputmode="numeric"></div>
+      </div>
+      <div class="sep"></div>
+      <div class="grid g2">
+        <div class="field"><label>Condiciones de acceso y faena</label><textarea data-f="acceso" placeholder="Acceso de camiones, altura libre, energía y agua en obra, horarios permitidos, acopio de material…"></textarea></div>
+        <div class="field"><label>Observaciones generales</label><textarea data-f="observaciones" placeholder="Estado actual, riesgos detectados, interferencias, supuestos del levantamiento…"></textarea></div>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn ghost sm" id="btn-gps">Registrar coordenadas GPS</button>
+        <span class="hint mono" id="gps-txt" style="align-self:center"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>Cubicación por partidas</h2>
+        <button class="btn accent sm" id="btn-add-partida">+ Partida</button>
+      </div>
+      <p class="hint">Agrega cada partida, ingresa las mediciones tomadas en terreno (N × largo × ancho × alto según la unidad) y adjunta las fotos que la respaldan. La cantidad total se calcula sola y es la que pasa a la cotización.</p>
+      <div id="partidas-cont" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>Fotos generales</h2>
+        <label class="btn ghost sm" style="text-transform:uppercase" for="inp-foto-gen">+ Fotos</label>
+      </div>
+      <p class="hint">Vistas generales del terreno, accesos, fachadas y todo lo que no pertenece a una partida específica.</p>
+      <input type="file" id="inp-foto-gen" accept="image/*" capture="environment" multiple hidden>
+      <div class="photo-grid" id="fotos-gen"></div>
+    </div>
+  </section>
+
+  <!-- ============ INFORME ============ -->
+  <section class="view" id="view-informe">
+    <div class="card no-print">
+      <div class="card-h">
+        <h2>Informe de levantamiento</h2>
+        <div class="btn-row">
+          <button class="btn ghost sm" onclick="window.print()">Imprimir</button>
+          <button class="btn accent sm" id="btn-pdf-informe">Descargar PDF</button>
+        </div>
+      </div>
+      <p class="hint">Vista previa del informe ordenado que se genera con lo levantado en terreno. El PDF incluye antecedentes, cubicación detallada y anexo fotográfico.</p>
+    </div>
+    <div class="rep" id="rep-cont"></div>
+  </section>
+
+  <!-- ============ COTIZACIÓN ============ -->
+  <section class="view" id="view-cotiza">
+    <div class="card">
+      <div class="card-h">
+        <h2>Cotización desde el levantamiento</h2>
+        <button class="btn ghost sm" id="btn-aplicar-precios">Aplicar precios del catálogo</button>
+      </div>
+      <p class="hint">Las cantidades vienen de la cubicación. Ajusta el precio unitario de cada partida; el catálogo de precios se edita en la pestaña <strong>Precios</strong>.</p>
+      <div class="table-wrap" style="margin-top:12px">
+        <table class="data" id="tabla-cotiza">
+          <thead><tr>
+            <th style="width:34px"></th><th>Código</th><th>Partida</th><th>Un.</th>
+            <th class="num">Cantidad</th><th class="num">P. unitario</th><th class="num">Total</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Condiciones comerciales</h3>
+      <div class="grid g3">
+        <div class="field"><label>Gastos generales %</label><input type="number" step="0.1" data-c="ggPct" inputmode="decimal"></div>
+        <div class="field"><label>Utilidad %</label><input type="number" step="0.1" data-c="utilidadPct" inputmode="decimal"></div>
+        <div class="field"><label>Descuento %</label><input type="number" step="0.1" data-c="descuentoPct" inputmode="decimal"></div>
+        <div class="field"><label>IVA %</label><input type="number" step="0.1" data-c="ivaPct" inputmode="decimal"></div>
+        <div class="field"><label>Validez (días)</label><input type="number" data-c="validezDias" inputmode="numeric"></div>
+        <div class="field"><label>Plazo de ejecución (días)</label><input type="number" data-c="plazoDias" inputmode="numeric"></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Notas y exclusiones</label><textarea data-c="notas" placeholder="Ej: No incluye permisos municipales ni proyectos de especialidad. Precios válidos para ejecución continua en horario hábil."></textarea></div>
+    </div>
+
+    <div class="card">
+      <h3>Resumen</h3>
+      <div id="cot-totales"></div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn accent" id="btn-pdf-cotiza">PDF cotización</button>
+        <button class="btn ghost" id="btn-xls">Exportar Excel</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONFIG / PRECIOS ============ -->
+  <section class="view" id="view-config">
+    <div class="card">
+      <div class="card-h">
+        <h2>Nube ALFEX</h2>
+        <span class="pill gray" id="nube-estado">—</span>
+      </div>
+      <p class="hint">Con la clave de acceso, los levantamientos, las fotos y el catálogo de precios se guardan en el servidor y quedan disponibles para todo el equipo. Sin clave, o sin señal en obra, la app sigue funcionando y guarda todo en el teléfono: se sube solo cuando vuelve la conexión.</p>
+      <div class="grid g2" style="margin-top:12px">
+        <div class="field"><label>Clave de acceso</label><input type="password" id="nube-clave" placeholder="La clave que entrega ALFEX" autocomplete="current-password"></div>
+        <div class="field" style="display:flex;align-items:flex-end;gap:10px">
+          <button class="btn accent" id="btn-sincronizar" style="flex:1">Sincronizar ahora</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Datos de la empresa</h2>
+      <div class="grid g2">
+        <div class="field"><label>Nombre / razón social</label><input data-e="nombre"></div>
+        <div class="field"><label>RUT</label><input data-e="rut"></div>
+        <div class="field"><label>Dirección</label><input data-e="direccion"></div>
+        <div class="field"><label>Teléfono</label><input data-e="telefono"></div>
+        <div class="field"><label>Email</label><input data-e="email"></div>
+        <div class="field"><label>Sitio web</label><input data-e="web"></div>
+      </div>
+      <div class="sep"></div>
+      <h3>Valores por defecto de cotización</h3>
+      <div class="grid g3">
+        <div class="field"><label>Gastos generales %</label><input type="number" step="0.1" data-e="ggPct"></div>
+        <div class="field"><label>Utilidad %</label><input type="number" step="0.1" data-e="utilidadPct"></div>
+        <div class="field"><label>IVA %</label><input type="number" step="0.1" data-e="ivaPct"></div>
+        <div class="field"><label>Validez oferta (días)</label><input type="number" data-e="validezDias"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>Catálogo de precios unitarios</h2>
+        <button class="btn accent sm" id="btn-add-precio">+ Ítem</button>
+      </div>
+      <p class="hint">Precios referenciales en CLP sin IVA. Ajústalos a los valores reales de ALFEX: son los que se aplican automáticamente a la cotización.</p>
+      <div class="table-wrap" style="margin-top:12px">
+        <table class="data" id="tabla-precios">
+          <thead><tr><th>Capítulo</th><th>Partida</th><th>Un.</th><th class="num">P. unitario</th><th style="width:34px"></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn ghost sm" id="btn-reset-catalogo">Restaurar catálogo base</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="sticky-bar" id="sticky">
+  <div class="info" id="sticky-info"></div>
+  <div class="btn-row">
+    <button class="btn ghost sm" id="btn-cerrar-lev">Cerrar</button>
+    <button class="btn accent sm" id="btn-ir-informe">Ver informe</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONSTANTES Y ESTADO ================= */
+const LS_KEY = 'alfex_levantamientos_v1';
+
+const UNIDADES = [
+  {u:'m2',  label:'m² (superficie)', dims:['l','a']},
+  {u:'m3',  label:'m³ (volumen)',    dims:['l','a','h']},
+  {u:'ml',  label:'ml (lineal)',     dims:['l']},
+  {u:'un',  label:'un (unidad)',     dims:[]},
+  {u:'kg',  label:'kg',              dims:[]},
+  {u:'gl',  label:'gl (global)',     dims:[]},
+  {u:'día', label:'día',             dims:[]},
+  {u:'hh',  label:'hh (hora hombre)',dims:[]}
+];
+
+const CAPITULOS = ['Obras preliminares','Demoliciones','Movimiento de tierras','Hormigones',
+  'Albañilería y tabiquería','Estructuras','Cubiertas','Terminaciones','Instalaciones',
+  'Pavimentos y exteriores','Aseo y entrega','Otros'];
+
+const CATALOGO_BASE = [
+  {cap:'Obras preliminares', name:'Instalación de faenas', unit:'gl', pu:850000},
+  {cap:'Obras preliminares', name:'Cierre provisorio de obra', unit:'ml', pu:18000},
+  {cap:'Obras preliminares', name:'Trazado y niveles', unit:'m2', pu:2500},
+  {cap:'Demoliciones', name:'Demolición de radier e=10 cm', unit:'m2', pu:12000},
+  {cap:'Demoliciones', name:'Demolición de muro albañilería', unit:'m2', pu:15500},
+  {cap:'Demoliciones', name:'Retiro de escombros a botadero', unit:'m3', pu:22000},
+  {cap:'Movimiento de tierras', name:'Excavación a máquina', unit:'m3', pu:9500},
+  {cap:'Movimiento de tierras', name:'Excavación a mano', unit:'m3', pu:28000},
+  {cap:'Movimiento de tierras', name:'Relleno compactado con material estabilizado', unit:'m3', pu:14000},
+  {cap:'Hormigones', name:'Emplantillado H-5', unit:'m3', pu:98000},
+  {cap:'Hormigones', name:'Hormigón G-25 en fundaciones', unit:'m3', pu:165000},
+  {cap:'Hormigones', name:'Radier e=10 cm con malla ACMA', unit:'m2', pu:26000},
+  {cap:'Hormigones', name:'Moldaje de muros', unit:'m2', pu:19000},
+  {cap:'Hormigones', name:'Enfierradura A63-42H', unit:'kg', pu:1900},
+  {cap:'Albañilería y tabiquería', name:'Muro albañilería ladrillo fiscal', unit:'m2', pu:42000},
+  {cap:'Albañilería y tabiquería', name:'Tabique metalcon con volcanita 2 caras', unit:'m2', pu:34000},
+  {cap:'Estructuras', name:'Estructura metálica (suministro y montaje)', unit:'kg', pu:3200},
+  {cap:'Estructuras', name:'Estructura de techumbre en madera', unit:'m2', pu:28000},
+  {cap:'Cubiertas', name:'Cubierta zinc-alum 0,5 mm', unit:'m2', pu:21000},
+  {cap:'Cubiertas', name:'Hojalatería y canales', unit:'ml', pu:12500},
+  {cap:'Terminaciones', name:'Estuco de muros', unit:'m2', pu:14500},
+  {cap:'Terminaciones', name:'Pintura látex 2 manos', unit:'m2', pu:5200},
+  {cap:'Terminaciones', name:'Cerámica de piso incluido adhesivo', unit:'m2', pu:23000},
+  {cap:'Terminaciones', name:'Cielo americano modular', unit:'m2', pu:19500},
+  {cap:'Instalaciones', name:'Punto eléctrico (enchufe o iluminación)', unit:'un', pu:38000},
+  {cap:'Instalaciones', name:'Punto sanitario agua y alcantarillado', unit:'un', pu:65000},
+  {cap:'Pavimentos y exteriores', name:'Pavimento asfáltico e=5 cm', unit:'m2', pu:19500},
+  {cap:'Pavimentos y exteriores', name:'Solerilla de hormigón', unit:'ml', pu:9800},
+  {cap:'Aseo y entrega', name:'Aseo final de obra', unit:'m2', pu:2200}
+];
+
+const CONFIG_BASE = {
+  nombre:'ALFEX Obras Civiles', rut:'', direccion:'', telefono:'', email:'', web:'',
+  ggPct:12, utilidadPct:10, ivaPct:19, validezDias:15
+};
+
+let db = { surveys:[], catalogo:[], config:{}, seqFolio:1 };
+let activeId = null;
+let currentView = 'list';
+const photoCache = new Map();   // id -> {full, thumb}
+
+/* ================= HELPERS ================= */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const uid = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(String(v).replace(',','.')); return isFinite(n)?n:0; };
+function fmtCLP(n){ if(!isFinite(n)) n=0; return '$' + Math.round(n).toLocaleString('es-CL'); }
+function fmtNum(n,d=2){ if(!isFinite(n)) n=0; return n.toLocaleString('es-CL',{minimumFractionDigits:d, maximumFractionDigits:d}); }
+function hoyISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function fechaLarga(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d).toLocaleDateString('es-CL',{day:'numeric', month:'long', year:'numeric'});
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function slug(t){
+  return String(t||'obra').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_').slice(0,40) || 'obra';
+}
+function getPath(obj, path){ return path.split('.').reduce((o,k)=> (o==null?undefined:o[k]), obj); }
+function setPath(obj, path, val){
+  const ks = path.split('.'); let o = obj;
+  ks.slice(0,-1).forEach(k=>{ if(o[k]==null || typeof o[k]!=='object') o[k]={}; o=o[k]; });
+  o[ks[ks.length-1]] = val;
+}
+
+/* ================= PERSISTENCIA ================= */
+function saveLocal(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(db));
+  }catch(e){
+    toast('No se pudo guardar: almacenamiento lleno. Exporta un respaldo.');
+  }
+}
+function saveDB(){
+  const s = getActive();
+  if(s){ s.updatedAt = Date.now(); s.dirty = true; }
+  saveLocal();
+  programarSync();
+}
+/** Los ajustes compartidos (empresa y catalogo) se versionan aparte. */
+function marcarAjustes(){
+  db.ajustesTs = Date.now();
+  saveLocal();
+  programarSync();
+}
+function loadDB(){
+  let raw = null;
+  try{ raw = localStorage.getItem(LS_KEY); }catch(e){}
+  if(raw){
+    try{ db = JSON.parse(raw); }catch(e){ db = null; }
+  }
+  if(!db || typeof db!=='object') db = {};
+  if(!Array.isArray(db.surveys)) db.surveys = [];
+  if(!Array.isArray(db.catalogo) || !db.catalogo.length) db.catalogo = CATALOGO_BASE.map(c=>({id:uid(),...c}));
+  db.config = Object.assign({}, CONFIG_BASE, db.config||{});
+  if(!db.seqFolio) db.seqFolio = db.surveys.length + 1;
+  if(!Array.isArray(db.borrados)) db.borrados = [];
+  if(!db.fotosSubidas || typeof db.fotosSubidas!=='object') db.fotosSubidas = {};
+  if(!db.ajustesTs) db.ajustesTs = 0;
+}
+
+/* --- Fotos en IndexedDB (evita llenar localStorage) --- */
+let idbPromise = null;
+function idb(){
+  if(idbPromise) return idbPromise;
+  idbPromise = new Promise((res,rej)=>{
+    if(!window.indexedDB){ rej(new Error('sin IndexedDB')); return; }
+    const rq = indexedDB.open('alfex_fotos', 1);
+    rq.onupgradeneeded = ()=>{ rq.result.createObjectStore('fotos', {keyPath:'id'}); };
+    rq.onsuccess = ()=>res(rq.result);
+    rq.onerror = ()=>rej(rq.error);
+  });
+  return idbPromise;
+}
+async function photoPut(rec){
+  try{
+    const d = await idb();
+    await new Promise((res,rej)=>{ const tx=d.transaction('fotos','readwrite'); tx.objectStore('fotos').put(rec); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+  }catch(e){ /* queda solo en memoria */ }
+  photoCache.set(rec.id, rec);
+}
+async function photoGet(id, permitirNube = true){
+  if(photoCache.has(id)) return photoCache.get(id);
+  let rec = null;
+  try{
+    const d = await idb();
+    rec = await new Promise((res,rej)=>{ const rq=d.transaction('fotos').objectStore('fotos').get(id); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
+  }catch(e){}
+  if(rec){ photoCache.set(id, rec); return rec; }
+  // La foto la tomo otro equipo: se baja de la nube y queda cacheada aca.
+  if(permitirNube && NUBE.disponible && NUBE.clave){
+    try{
+      const remota = await api('fotos/'+id);
+      if(remota && remota.full){
+        const completa = {id, full:remota.full, thumb:remota.thumb||remota.full, w:remota.w||1, h:remota.h||1};
+        await photoPut(completa);
+        db.fotosSubidas[id] = 1;
+        return completa;
+      }
+    }catch(e){}
+  }
+  return null;
+}
+async function photoDel(id){
+  photoCache.delete(id);
+  try{
+    const d = await idb();
+    await new Promise((res,rej)=>{ const tx=d.transaction('fotos','readwrite'); tx.objectStore('fotos').delete(id); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+  }catch(e){}
+}
+/* Redimensiona la foto del celular para que el informe pese poco */
+function fileToPhoto(file, id){
+  return new Promise((resolve,reject)=>{
+    const fr = new FileReader();
+    fr.onerror = ()=>reject(fr.error);
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=>reject(new Error('imagen inválida'));
+      img.onload = ()=>{
+        const draw = (maxSide, q)=>{
+          const sc = Math.min(1, maxSide/Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width*sc));
+          c.height = Math.max(1, Math.round(img.height*sc));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          return {data:c.toDataURL('image/jpeg', q), w:c.width, h:c.height};
+        };
+        const full = draw(1400, 0.72);
+        const th   = draw(260, 0.6);
+        resolve({id, full:full.data, thumb:th.data, w:full.w, h:full.h});
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ================= MODELO ================= */
+function nuevoLevantamiento(){
+  const folio = 'LT-' + new Date().getFullYear() + '-' + String(db.seqFolio++).padStart(3,'0');
+  const c = db.config;
+  return {
+    id: uid(), folio, obra:'', fecha: hoyISO(), responsable:'',
+    cliente:{nombre:'', rut:'', contacto:'', telefono:'', email:''},
+    direccion:'', comuna:'', tipoObra:'', plazoDias:'', acceso:'', observaciones:'',
+    gps:null, partidas:[], fotos:[],
+    cot:{ pu:{}, excluidas:{}, ggPct:c.ggPct, utilidadPct:c.utilidadPct, descuentoPct:0,
+          ivaPct:c.ivaPct, validezDias:c.validezDias, plazoDias:'', notas:'' },
+    createdAt: Date.now(), updatedAt: Date.now()
+  };
+}
+function nuevaPartida(cap){
+  return { id:uid(), cap: cap||CAPITULOS[0], name:'', unit:'m2',
+           meds:[{d:'', n:1, l:'', a:'', h:''}], obs:'', open:true };
+}
+const getActive = ()=> db.surveys.find(s=>s.id===activeId) || null;
+const dimsDe = u => (UNIDADES.find(x=>x.u===u)||UNIDADES[0]).dims;
+const UNIT_LABEL = {m2:'m²', m3:'m³'};
+const uLabel = u => UNIT_LABEL[u] || u;
+
+function parcialMed(p, m){
+  const dims = dimsDe(p.unit);
+  const n = m.n===''||m.n==null ? 1 : num(m.n);
+  if(!dims.length) return n;
+  return dims.reduce((acc,d)=> acc * num(m[d]), n);
+}
+function cantidadPartida(p){
+  return (p.meds||[]).reduce((s,m)=> s + parcialMed(p,m), 0);
+}
+/* Partidas ordenadas por capítulo, con código 1.1, 1.2, 2.1… */
+function partidasOrdenadas(s){
+  const orden = {}; CAPITULOS.forEach((c,i)=> orden[c]=i);
+  const caps = [];
+  (s.partidas||[]).forEach(p=>{ if(!caps.includes(p.cap)) caps.push(p.cap); });
+  caps.sort((a,b)=> (orden[a]==null?99:orden[a]) - (orden[b]==null?99:orden[b]));
+  const out = [];
+  caps.forEach((cap,ci)=>{
+    s.partidas.filter(p=>p.cap===cap).forEach((p,pi)=>{
+      out.push({p, cap, cod:(ci+1)+'.'+(pi+1), capIndex:ci});
+    });
+  });
+  return out;
+}
+function fotosDePartida(s, pid){ return (s.fotos||[]).filter(f=>f.partidaId===pid); }
+
+/* ================= CÁLCULO DE COTIZACIÓN ================= */
+function calcCotizacion(s){
+  const c = s.cot;
+  const lines = partidasOrdenadas(s)
+    .filter(({p})=> !c.excluidas[p.id])
+    .map(({p,cod,cap})=>{
+      const cant = cantidadPartida(p);
+      const pu = num(c.pu[p.id]);
+      return {id:p.id, cod, cap, name:p.name || '(sin nombre)', unit:p.unit, cant, pu, total: cant*pu};
+    });
+  const costoDirecto = lines.reduce((s2,l)=>s2+l.total, 0);
+  const gg = costoDirecto * num(c.ggPct)/100;
+  const utilidad = (costoDirecto + gg) * num(c.utilidadPct)/100;
+  const bruto = costoDirecto + gg + utilidad;
+  const descuento = bruto * num(c.descuentoPct)/100;
+  const neto = bruto - descuento;
+  const iva = neto * num(c.ivaPct)/100;
+  return {lines, costoDirecto, gg, utilidad, descuento, neto, iva, total: neto+iva};
+}
+</script>
+
+<script>
+/* ================= NAVEGACIÓN ================= */
+function setView(v){
+  currentView = v;
+  $$('nav.tabs button').forEach(b=> b.classList.toggle('active', b.dataset.view===v));
+  $$('section.view').forEach(sec=> sec.classList.toggle('active', sec.id==='view-'+v));
+  window.scrollTo({top:0, behavior:'instant'});
+  if(v==='ficha')   renderFicha();
+  if(v==='informe') renderInforme();
+  if(v==='cotiza')  renderCotiza();
+  if(v==='config')  renderConfig();
+  if(v==='list')    renderLista();
+}
+function refreshTabs(){
+  const hay = !!getActive();
+  $$('nav.tabs button[data-needs-active]').forEach(b=> b.disabled = !hay);
+  const bar = $('#sticky');
+  if(hay && currentView!=='list'){
+    const s = getActive();
+    bar.classList.add('show');
+    $('#sticky-info').textContent = `${s.folio} · ${s.obra || 'Sin nombre de obra'}`;
+  } else bar.classList.remove('show');
+}
+function abrirLev(id){ activeId = id; refreshTabs(); setView('ficha'); }
+
+/* ================= LISTA ================= */
+function renderLista(){
+  const q = ($('#buscar').value||'').toLowerCase().trim();
+  const cont = $('#lista-lev');
+  const items = db.surveys
+    .slice()
+    .sort((a,b)=> b.updatedAt - a.updatedAt)
+    .filter(s=> !q || [s.obra, s.folio, s.cliente&&s.cliente.nombre, s.direccion, s.comuna]
+      .some(v=> String(v||'').toLowerCase().includes(q)));
+
+  if(!items.length){
+    cont.innerHTML = `<div class="empty">${db.surveys.length
+      ? 'Ningún levantamiento coincide con la búsqueda.'
+      : 'Aún no hay levantamientos. Toca <strong>+ Nuevo</strong> antes de salir a terreno.'}</div>`;
+    return;
+  }
+  cont.innerHTML = items.map(s=>{
+    const cot = calcCotizacion(s);
+    const nf = (s.fotos||[]).length, np = (s.partidas||[]).length;
+    const estado = cot.total>0 ? '<span class="pill ok">Cotizado</span>'
+                 : np ? '<span class="pill accent">En cubicación</span>'
+                      : '<span class="pill gray">Borrador</span>';
+    return `<div class="lev-item">
+      <div style="min-width:0">
+        <div class="t">${esc(s.obra||'Obra sin nombre')}</div>
+        <div class="m">${esc(s.cliente&&s.cliente.nombre||'Sin cliente')} · ${esc(s.comuna||s.direccion||'Sin dirección')}</div>
+        <div class="stats">
+          <span class="mono">${esc(s.folio)}</span>
+          <span>${fechaLarga(s.fecha)}</span>
+          <span>${np} partida${np===1?'':'s'}</span>
+          <span>${nf} foto${nf===1?'':'s'}</span>
+          ${cot.total>0?`<span class="mono">${fmtCLP(cot.total)}</span>`:''}
+        </div>
+        <div style="margin-top:8px">${estado}</div>
+      </div>
+      <div class="lev-actions">
+        <button class="btn accent sm" data-open="${s.id}">Abrir</button>
+        <button class="btn ghost sm" data-dup="${s.id}">Duplicar</button>
+        <button class="btn ghost sm" data-del="${s.id}">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  $$('[data-open]',cont).forEach(b=> b.onclick = ()=> abrirLev(b.dataset.open));
+  $$('[data-dup]',cont).forEach(b=> b.onclick = ()=> duplicarLev(b.dataset.dup));
+  $$('[data-del]',cont).forEach(b=> b.onclick = ()=> eliminarLev(b.dataset.del));
+}
+function duplicarLev(id){
+  const s = db.surveys.find(x=>x.id===id); if(!s) return;
+  const copia = JSON.parse(JSON.stringify(s));
+  copia.id = uid();
+  copia.folio = 'LT-' + new Date().getFullYear() + '-' + String(db.seqFolio++).padStart(3,'0');
+  copia.obra = (s.obra||'Obra') + ' (copia)';
+  copia.fecha = hoyISO();
+  copia.fotos = [];                      // las fotos no se duplican
+  copia.partidas = (copia.partidas||[]).map(p=>({...p, id:uid()}));
+  copia.cot.pu = {}; copia.cot.excluidas = {};
+  copia.createdAt = copia.updatedAt = Date.now();
+  db.surveys.push(copia); saveDB(); renderLista();
+  toast('Levantamiento duplicado');
+}
+function eliminarLev(id){
+  const s = db.surveys.find(x=>x.id===id); if(!s) return;
+  if(!confirm(`¿Eliminar el levantamiento "${s.obra||s.folio}" y sus fotos? Esta acción no se puede deshacer.`)) return;
+  (s.fotos||[]).forEach(f=> photoDel(f.id));
+  db.surveys = db.surveys.filter(x=>x.id!==id);
+  if(!db.borrados.includes(id)) db.borrados.push(id);
+  if(activeId===id) activeId = null;
+  saveLocal(); programarSync(); refreshTabs(); renderLista();
+  toast('Levantamiento eliminado');
+}
+
+/* ================= FICHA ================= */
+function renderFicha(){
+  const s = getActive(); if(!s) { setView('list'); return; }
+  $('#ficha-folio').textContent = s.folio;
+  $$('[data-f]').forEach(el=>{ el.value = getPath(s, el.dataset.f) ?? ''; });
+  $('#gps-txt').textContent = s.gps ? `${s.gps.lat.toFixed(5)}, ${s.gps.lon.toFixed(5)}` : '';
+  renderPartidas();
+  renderFotosGen();
+  refreshTabs();
+}
+function renderPartidas(){
+  const s = getActive(); const cont = $('#partidas-cont');
+  if(!s.partidas.length){
+    cont.innerHTML = `<div class="empty">Sin partidas todavía. Toca <strong>+ Partida</strong> para registrar la primera medición.</div>`;
+    return;
+  }
+  const grupos = {};
+  partidasOrdenadas(s).forEach(o=>{ (grupos[o.cap] = grupos[o.cap]||[]).push(o); });
+
+  cont.innerHTML = Object.entries(grupos).map(([cap, arr])=>`
+    <div class="cap-block">
+      <div class="cap-title">${esc(cap)}</div>
+      ${arr.map(({p,cod})=> partidaHTML(s,p,cod)).join('')}
+    </div>`).join('');
+
+  // Interacción
+  $$('.partida-h', cont).forEach(h=> h.onclick = e=>{
+    if(e.target.closest('button')) return;
+    const card = h.parentElement;
+    const p = s.partidas.find(x=>x.id===card.dataset.pid);
+    p.open = !card.classList.contains('open');
+    card.classList.toggle('open', p.open);
+    saveDB();
+  });
+  $$('[data-pfield]', cont).forEach(el=>{
+    el.oninput = ()=>{
+      const p = s.partidas.find(x=>x.id===el.closest('.partida').dataset.pid);
+      p[el.dataset.pfield] = el.value;
+      if(el.dataset.pfield==='unit' || el.dataset.pfield==='cap') renderPartidas();
+      else actualizaPartidaHeader(p);
+      saveDB();
+    };
+  });
+  $$('[data-med]', cont).forEach(el=>{
+    el.oninput = ()=>{
+      const card = el.closest('.partida');
+      const p = s.partidas.find(x=>x.id===card.dataset.pid);
+      const m = p.meds[+el.dataset.idx];
+      m[el.dataset.med] = el.value;
+      el.closest('.med-row').querySelector('.par').textContent = fmtNum(parcialMed(p,m), 2);
+      card.querySelector('[data-total]').textContent = fmtNum(cantidadPartida(p),2) + ' ' + uLabel(p.unit);
+      actualizaPartidaHeader(p);
+      saveDB();
+    };
+  });
+  $$('[data-addmed]', cont).forEach(b=> b.onclick = ()=>{
+    const p = s.partidas.find(x=>x.id===b.dataset.addmed);
+    p.meds.push({d:'', n:1, l:'', a:'', h:''}); saveDB(); renderPartidas();
+  });
+  $$('[data-delmed]', cont).forEach(b=> b.onclick = ()=>{
+    const p = s.partidas.find(x=>x.id===b.closest('.partida').dataset.pid);
+    p.meds.splice(+b.dataset.delmed,1);
+    if(!p.meds.length) p.meds.push({d:'', n:1, l:'', a:'', h:''});
+    saveDB(); renderPartidas();
+  });
+  $$('[data-delpartida]', cont).forEach(b=> b.onclick = ()=>{
+    const p = s.partidas.find(x=>x.id===b.dataset.delpartida);
+    if(!confirm(`¿Eliminar la partida "${p.name||'sin nombre'}" y sus fotos?`)) return;
+    fotosDePartida(s,p.id).forEach(f=> photoDel(f.id));
+    s.fotos = s.fotos.filter(f=> f.partidaId!==p.id);
+    s.partidas = s.partidas.filter(x=>x.id!==p.id);
+    delete s.cot.pu[p.id];
+    saveDB(); renderPartidas();
+  });
+  $$('[data-catalogo]', cont).forEach(sel=> sel.onchange = ()=>{
+    if(!sel.value) return;
+    const item = db.catalogo.find(c=>c.id===sel.value); if(!item) return;
+    const p = s.partidas.find(x=>x.id===sel.closest('.partida').dataset.pid);
+    p.name = item.name; p.unit = item.unit; p.cap = item.cap;
+    s.cot.pu[p.id] = item.pu;
+    saveDB(); renderPartidas();
+  });
+  $$('input[type=file][data-fotopartida]', cont).forEach(inp=> inp.onchange = e=> agregarFotos(e.target.files, inp.dataset.fotopartida));
+  pintarFotosPartidas();
+}
+function partidaHTML(s, p, cod){
+  const dims = dimsDe(p.unit);
+  const col = d => dims.includes(d);
+  return `<div class="partida ${p.open?'open':''}" data-pid="${p.id}">
+    <div class="partida-h">
+      <span class="cod">${cod}</span>
+      <span class="nm" data-nm>${esc(p.name||'Nueva partida')}</span>
+      <span class="qt" data-qt>${fmtNum(cantidadPartida(p),2)} ${esc(uLabel(p.unit))}</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="partida-b">
+      <div class="grid g2">
+        <div class="field"><label>Partida</label><input data-pfield="name" value="${esc(p.name)}" placeholder="Ej: Radier e=10 cm sala de máquinas"></div>
+        <div class="field"><label>Desde catálogo</label>
+          <select data-catalogo><option value="">— Elegir del catálogo —</option>
+            ${db.catalogo.map(c=>`<option value="${c.id}">${esc(c.cap)} · ${esc(c.name)} (${esc(c.unit)})</option>`).join('')}
+          </select></div>
+        <div class="field"><label>Capítulo</label>
+          <select data-pfield="cap">${CAPITULOS.map(c=>`<option ${c===p.cap?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+        <div class="field"><label>Unidad</label>
+          <select data-pfield="unit">${UNIDADES.map(u=>`<option value="${u.u}" ${u.u===p.unit?'selected':''}>${esc(u.label)}</option>`).join('')}</select></div>
+      </div>
+
+      <div class="sep"></div>
+      <label>Mediciones en terreno</label>
+      <div class="meds">
+        ${p.meds.map((m,i)=>`<div class="med-row">
+          <div class="med-top">
+            <input data-med="d" data-idx="${i}" value="${esc(m.d)}" placeholder="Recinto / eje / detalle">
+            <button class="x" data-delmed="${i}" title="Eliminar línea">×</button>
+          </div>
+          <div class="med-dims">
+            <div class="d"><label>N°</label><input data-med="n" data-idx="${i}" value="${esc(m.n)}" inputmode="decimal"></div>
+            ${col('l')?`<div class="d"><label>Largo m</label><input data-med="l" data-idx="${i}" value="${esc(m.l)}" inputmode="decimal"></div>`:''}
+            ${col('a')?`<div class="d"><label>Ancho m</label><input data-med="a" data-idx="${i}" value="${esc(m.a)}" inputmode="decimal"></div>`:''}
+            ${col('h')?`<div class="d"><label>Alto/esp. m</label><input data-med="h" data-idx="${i}" value="${esc(m.h)}" inputmode="decimal"></div>`:''}
+            <div class="d"><label>Parcial</label><div class="par">${fmtNum(parcialMed(p,m),2)}</div></div>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div class="btn-row" style="margin-top:8px;justify-content:space-between;align-items:center">
+        <button class="btn ghost sm" data-addmed="${p.id}">+ Medición</button>
+        <div class="med-total">Total <span data-total>${fmtNum(cantidadPartida(p),2)} ${esc(uLabel(p.unit))}</span></div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="field"><label>Observaciones de la partida</label>
+        <textarea data-pfield="obs" placeholder="Estado, materiales existentes, dificultades de ejecución…">${esc(p.obs)}</textarea></div>
+
+      <div class="card-h" style="margin:14px 0 0">
+        <label style="margin:0">Fotos de la partida</label>
+        <label class="btn ghost sm" for="fp-${p.id}" style="text-transform:uppercase">+ Fotos</label>
+      </div>
+      <input type="file" id="fp-${p.id}" data-fotopartida="${p.id}" accept="image/*" capture="environment" multiple hidden>
+      <div class="photo-grid" data-fotos="${p.id}"></div>
+
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn danger sm" data-delpartida="${p.id}">Eliminar partida</button>
+      </div>
+    </div>
+  </div>`;
+}
+function actualizaPartidaHeader(p){
+  const card = document.querySelector(`.partida[data-pid="${p.id}"]`); if(!card) return;
+  card.querySelector('[data-nm]').textContent = p.name || 'Nueva partida';
+  card.querySelector('[data-qt]').textContent = fmtNum(cantidadPartida(p),2) + ' ' + uLabel(p.unit);
+}
+
+/* ================= FOTOS ================= */
+async function agregarFotos(fileList, partidaId){
+  const s = getActive(); if(!s || !fileList || !fileList.length) return;
+  toast(`Procesando ${fileList.length} foto${fileList.length===1?'':'s'}…`);
+  for(const file of Array.from(fileList)){
+    if(!file.type.startsWith('image/')) continue;
+    try{
+      const id = uid();
+      const rec = await fileToPhoto(file, id);
+      await photoPut(rec);
+      s.fotos.push({id, partidaId: partidaId||null, caption:''});
+    }catch(e){ console.warn('foto', e); }
+  }
+  saveDB();
+  if(partidaId) pintarFotosPartidas(); else renderFotosGen();
+  toast('Fotos agregadas');
+}
+async function pintarFotosPartidas(){
+  const s = getActive(); if(!s) return;
+  for(const cont of $$('[data-fotos]')){
+    const pid = cont.dataset.fotos;
+    await pintarGrid(cont, fotosDePartida(s,pid));
+  }
+}
+async function renderFotosGen(){
+  const s = getActive(); if(!s) return;
+  await pintarGrid($('#fotos-gen'), (s.fotos||[]).filter(f=>!f.partidaId));
+}
+async function pintarGrid(cont, fotos){
+  const s = getActive();
+  if(!fotos.length){ cont.innerHTML = `<div class="hint" style="grid-column:1/-1">Sin fotos.</div>`; return; }
+  const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
+  cont.innerHTML = fotos.map((f,i)=>{
+    const rec = recs[i];
+    const nro = (s.fotos.indexOf(f)+1);
+    return `<div class="photo" data-fid="${f.id}">
+      <span class="idx">F${nro}</span>
+      <button class="del" data-delfoto="${f.id}" title="Eliminar">×</button>
+      ${rec? `<img src="${rec.thumb}" alt="Foto ${nro}" data-verfoto="${f.id}">`
+            : `<div style="height:92px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#565D66">no disponible</div>`}
+      <input class="cap" data-capfoto="${f.id}" value="${esc(f.caption)}" placeholder="Descripción…">
+    </div>`;
+  }).join('');
+  $$('[data-delfoto]',cont).forEach(b=> b.onclick = async ()=>{
+    const id = b.dataset.delfoto;
+    if(!confirm('¿Eliminar esta foto?')) return;
+    await photoDel(id);
+    s.fotos = s.fotos.filter(f=>f.id!==id);
+    if(db.fotosSubidas[id]){ delete db.fotosSubidas[id]; api('fotos/'+id, {method:'DELETE'}).catch(()=>{}); }
+    saveDB(); pintarFotosPartidas(); renderFotosGen();
+  });
+  $$('[data-capfoto]',cont).forEach(inp=> inp.oninput = ()=>{
+    const f = s.fotos.find(x=>x.id===inp.dataset.capfoto);
+    if(f){ f.caption = inp.value; saveDB(); }
+  });
+  $$('[data-verfoto]',cont).forEach(img=> img.onclick = async ()=>{
+    const rec = await photoGet(img.dataset.verfoto); if(!rec) return;
+    const w = window.open('');
+    if(w) w.document.write(`<title>Foto</title><body style="margin:0;background:#111"><img src="${rec.full}" style="max-width:100%;display:block;margin:auto"></body>`);
+  });
+}
+</script>
+
+<script>
+/* ================= INFORME (pantalla) ================= */
+async function renderInforme(){
+  const s = getActive(); if(!s){ setView('list'); return; }
+  const cont = $('#rep-cont');
+  const e = db.config;
+  const ord = partidasOrdenadas(s);
+  const capsVistos = [];
+
+  let filas = '';
+  ord.forEach(({p,cod,cap})=>{
+    if(!capsVistos.includes(cap)){
+      capsVistos.push(cap);
+      filas += `<tr class="cap-row"><td colspan="5">${esc(cap)}</td></tr>`;
+    }
+    const detalle = (p.meds||[])
+      .filter(m=> parcialMed(p,m)>0 || m.d)
+      .map(m=>{
+        const dims = dimsDe(p.unit).map(d=> fmtNum(num(m[d]),2)).join(' × ');
+        const et = m.d ? esc(m.d)+': ' : '';
+        return `${et}${fmtNum(num(m.n)||1,0)}${dims?' × '+dims:''} = ${fmtNum(parcialMed(p,m),2)}`;
+      }).join('<br>');
+    const nf = fotosDePartida(s,p.id).length;
+    filas += `<tr>
+      <td class="mono">${cod}</td>
+      <td><strong>${esc(p.name||'(sin nombre)')}</strong>
+        ${detalle?`<div style="font-size:11px;color:#565D66;margin-top:4px">${detalle}</div>`:''}
+        ${p.obs?`<div style="font-size:11px;color:#565D66;margin-top:4px"><em>Obs: ${esc(p.obs)}</em></div>`:''}
+        ${nf?`<div style="font-size:11px;color:#2E6E7E;margin-top:4px">${nf} foto${nf===1?'':'s'} adjunta${nf===1?'':'s'}</div>`:''}
+      </td>
+      <td>${esc(uLabel(p.unit))}</td>
+      <td class="num">${fmtNum(cantidadPartida(p),2)}</td>
+      <td class="num">${nf||''}</td>
+    </tr>`;
+  });
+
+  const fotos = s.fotos||[];
+  const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
+  const nombrePartida = pid =>{
+    const o = ord.find(x=>x.p.id===pid);
+    return o ? `${o.cod} ${o.p.name||''}` : 'General';
+  };
+
+  cont.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div>
+        <h2>Informe de levantamiento técnico</h2>
+        <p style="color:#565D66;font-size:13px;margin:0">${esc(e.nombre||'ALFEX')}${e.rut?' · '+esc(e.rut):''}</p>
+      </div>
+      <div class="mono" style="font-size:13px;text-align:right">
+        <div><strong>${esc(s.folio)}</strong></div>
+        <div style="color:#565D66">${fechaLarga(s.fecha)}</div>
+      </div>
+    </div>
+
+    <h3>1. Antecedentes generales</h3>
+    <div class="kv">
+      <div><span>Obra</span>${esc(s.obra||'—')}</div>
+      <div><span>Tipo de obra</span>${esc(s.tipoObra||'—')}</div>
+      <div><span>Cliente</span>${esc(s.cliente.nombre||'—')}</div>
+      <div><span>RUT</span>${esc(s.cliente.rut||'—')}</div>
+      <div><span>Contacto en terreno</span>${esc(s.cliente.contacto||'—')}${s.cliente.telefono?' · '+esc(s.cliente.telefono):''}</div>
+      <div><span>Email</span>${esc(s.cliente.email||'—')}</div>
+      <div><span>Dirección</span>${esc(s.direccion||'—')}${s.comuna?', '+esc(s.comuna):''}</div>
+      <div><span>Coordenadas</span>${s.gps? s.gps.lat.toFixed(5)+', '+s.gps.lon.toFixed(5) : '—'}</div>
+      <div><span>Visita realizada por</span>${esc(s.responsable||'—')}</div>
+      <div><span>Plazo estimado</span>${s.plazoDias? esc(s.plazoDias)+' días corridos' : '—'}</div>
+    </div>
+
+    <h3>2. Condiciones de acceso y faena</h3>
+    <p>${esc(s.acceso||'Sin observaciones registradas.').replace(/\n/g,'<br>')}</p>
+
+    <h3>3. Observaciones generales</h3>
+    <p>${esc(s.observaciones||'Sin observaciones registradas.').replace(/\n/g,'<br>')}</p>
+
+    <h3>4. Cubicación levantada</h3>
+    ${ord.length? `<div class="table-wrap"><table class="data">
+      <thead><tr><th>Código</th><th>Partida y mediciones</th><th>Un.</th><th class="num">Cantidad</th><th class="num">Fotos</th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`
+      : '<p>No se registraron partidas en este levantamiento.</p>'}
+
+    <h3>5. Registro fotográfico</h3>
+    ${fotos.length? `<div class="rep-photos">${fotos.map((f,i)=>`
+        <figure>
+          ${recs[i]? `<img src="${recs[i].thumb}" alt="Foto ${i+1}">` : ''}
+          <figcaption><strong>Foto ${i+1}</strong> · ${esc(nombrePartida(f.partidaId))}${f.caption?' — '+esc(f.caption):''}</figcaption>
+        </figure>`).join('')}</div>`
+      : '<p>Sin fotografías adjuntas.</p>'}
+
+    <div style="margin-top:34px;display:flex;gap:40px;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px;border-top:1px solid #1C2024;padding-top:6px;font-size:12px;color:#565D66">
+        ${esc(s.responsable||'Profesional ALFEX')}<br>${esc(e.nombre||'ALFEX')}
+      </div>
+      <div style="flex:1;min-width:180px;border-top:1px solid #1C2024;padding-top:6px;font-size:12px;color:#565D66">
+        ${esc(s.cliente.contacto||'Recibe cliente')}<br>${esc(s.cliente.nombre||'')}
+      </div>
+    </div>`;
+  refreshTabs();
+}
+
+/* ================= PDF: helpers comunes ================= */
+function pdfHeader(doc, titulo, s){
+  const e = db.config, marginX = 16, rightX = 194;
+  doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(28,32,36);
+  doc.text(String(e.nombre||'ALFEX').toUpperCase(), marginX, 20);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(86,93,102);
+  const datos = [e.rut, e.direccion, e.telefono, e.email, e.web].filter(Boolean).join(' · ');
+  if(datos) doc.text(datos, marginX, 25, {maxWidth: rightX-marginX});
+  doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(28,32,36);
+  doc.text(titulo, marginX, 36);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(86,93,102);
+  doc.text(`${s.folio}   ${fechaLarga(s.fecha)}`, rightX, 36, {align:'right'});
+  doc.setDrawColor(245,166,35); doc.setLineWidth(1); doc.line(marginX, 39, rightX, 39);
+  return 47;
+}
+function pdfFooter(doc){
+  const n = doc.internal.getNumberOfPages();
+  for(let i=1;i<=n;i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(140,146,152);
+    doc.text(`${db.config.nombre||'ALFEX'} · documento generado el ${new Date().toLocaleDateString('es-CL')}`, 16, 289);
+    doc.text(`Página ${i} de ${n}`, 194, 289, {align:'right'});
+  }
+}
+function pdfSubtitulo(doc, txt, y){
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(28,32,36);
+  doc.text(txt, 16, y);
+  return y + 5;
+}
+function pdfParrafo(doc, txt, y){
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(60,66,72);
+  const lines = doc.splitTextToSize(txt || 'Sin observaciones registradas.', 178);
+  lines.forEach(l=>{
+    if(y > 275){ doc.addPage(); y = 20; }
+    doc.text(l, 16, y); y += 4.6;
+  });
+  return y + 4;
+}
+
+/* ================= PDF INFORME ================= */
+async function pdfInforme(){
+  const s = getActive(); if(!s) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  let y = pdfHeader(doc, 'INFORME DE LEVANTAMIENTO TÉCNICO', s);
+
+  y = pdfSubtitulo(doc, '1. Antecedentes generales', y);
+  doc.autoTable({
+    startY: y, theme:'plain', styles:{fontSize:9, cellPadding:1.4, textColor:[40,45,50]},
+    columnStyles:{0:{fontStyle:'bold', cellWidth:44}, 2:{fontStyle:'bold', cellWidth:38}},
+    body:[
+      ['Obra', s.obra||'—', 'Tipo de obra', s.tipoObra||'—'],
+      ['Cliente', s.cliente.nombre||'—', 'RUT', s.cliente.rut||'—'],
+      ['Contacto', [s.cliente.contacto, s.cliente.telefono].filter(Boolean).join(' · ')||'—', 'Email', s.cliente.email||'—'],
+      ['Dirección', [s.direccion, s.comuna].filter(Boolean).join(', ')||'—', 'Coordenadas', s.gps? `${s.gps.lat.toFixed(5)}, ${s.gps.lon.toFixed(5)}`:'—'],
+      ['Visita realizada por', s.responsable||'—', 'Plazo estimado', s.plazoDias? s.plazoDias+' días':'—']
+    ]
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  y = pdfSubtitulo(doc, '2. Condiciones de acceso y faena', y);
+  y = pdfParrafo(doc, s.acceso, y);
+  if(y > 250){ doc.addPage(); y = 20; }
+  y = pdfSubtitulo(doc, '3. Observaciones generales', y);
+  y = pdfParrafo(doc, s.observaciones, y);
+
+  // 4. Cubicación
+  const ord = partidasOrdenadas(s);
+  if(y > 235){ doc.addPage(); y = 20; }
+  y = pdfSubtitulo(doc, '4. Cubicación levantada', y);
+  const body = []; const capsVistos = []; const capRows = [];
+  ord.forEach(({p,cod,cap})=>{
+    if(!capsVistos.includes(cap)){
+      capsVistos.push(cap); capRows.push(body.length);
+      body.push([{content:cap, colSpan:4, styles:{fontStyle:'bold', textColor:[46,110,126], fillColor:[238,243,244]}}]);
+    }
+    const detalle = (p.meds||[]).filter(m=> parcialMed(p,m)>0 || m.d).map(m=>{
+      const dims = dimsDe(p.unit).map(d=> fmtNum(num(m[d]),2)).join(' x ');
+      return `  ${m.d? m.d+': ':''}${fmtNum(num(m.n)||1,0)}${dims?' x '+dims:''} = ${fmtNum(parcialMed(p,m),2)}`;
+    }).join('\n');
+    const nf = fotosDePartida(s,p.id).length;
+    let txt = p.name || '(sin nombre)';
+    if(detalle) txt += '\n' + detalle;
+    if(p.obs) txt += '\nObs: ' + p.obs;
+    if(nf) txt += `\n(${nf} foto${nf===1?'':'s'} en anexo)`;
+    body.push([cod, txt, uLabel(p.unit), fmtNum(cantidadPartida(p),2)]);
+  });
+  if(body.length){
+    doc.autoTable({
+      startY:y, head:[['Cód.','Partida y mediciones','Un.','Cantidad']], body,
+      theme:'grid', rowPageBreak:'avoid', headStyles:{fillColor:[28,32,36], textColor:[255,255,255], fontSize:9},
+      styles:{fontSize:8.5, cellPadding:2, textColor:[40,45,50]},
+      columnStyles:{0:{cellWidth:14}, 2:{cellWidth:14, halign:'center'}, 3:{cellWidth:24, halign:'right'}}
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  } else {
+    y = pdfParrafo(doc, 'No se registraron partidas en este levantamiento.', y);
+  }
+
+  // 5. Registro fotográfico (2 por fila)
+  const fotos = s.fotos||[];
+  if(fotos.length){
+    doc.addPage(); y = 20;
+    y = pdfSubtitulo(doc, '5. Registro fotográfico', y);
+    const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
+    const colW = 86, gap = 6, maxH = 62;
+    let col = 0, rowTop = y;
+    for(let i=0;i<fotos.length;i++){
+      const rec = recs[i]; if(!rec) continue;
+      const ratio = rec.h/rec.w;
+      let w = colW, h = w*ratio;
+      if(h > maxH){ h = maxH; w = h/ratio; }
+      const x = 16 + col*(colW+gap);
+      if(col===0 && rowTop + h + 16 > 280){ doc.addPage(); rowTop = 20; }
+      try{ doc.addImage(rec.full, 'JPEG', x, rowTop, w, h); }catch(err){}
+      const o = ord.find(z=> z.p.id===fotos[i].partidaId);
+      const cap = `Foto ${i+1} · ${o? o.cod+' '+(o.p.name||'') : 'General'}${fotos[i].caption? ' — '+fotos[i].caption : ''}`;
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(86,93,102);
+      const capLines = doc.splitTextToSize(cap, colW);
+      capLines.slice(0,3).forEach((l,k)=> doc.text(l, x, rowTop + h + 3.4 + k*3.2));
+      if(col===1 || i===fotos.length-1){ rowTop += maxH + 16; col = 0; } else col = 1;
+    }
+  }
+  pdfFooter(doc);
+  doc.save(`Informe_${s.folio}_${slug(s.obra)}.pdf`);
+}
+</script>
+
+<script>
+/* ================= COTIZACIÓN ================= */
+function renderCotiza(){
+  const s = getActive(); if(!s){ setView('list'); return; }
+  $$('[data-c]').forEach(el=>{ el.value = s.cot[el.dataset.c] ?? ''; });
+
+  const tb = $('#tabla-cotiza tbody');
+  const ord = partidasOrdenadas(s);
+  if(!ord.length){
+    tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#565D66;padding:20px">
+      Sin partidas cubicadas. Agrégalas en la pestaña <strong>Ficha</strong>.</td></tr>`;
+  } else {
+    const capsVistos = [];
+    tb.innerHTML = ord.map(({p,cod,cap})=>{
+      let pre = '';
+      if(!capsVistos.includes(cap)){ capsVistos.push(cap); pre = `<tr class="cap-row"><td colspan="7">${esc(cap)}</td></tr>`; }
+      const cant = cantidadPartida(p);
+      const pu = num(s.cot.pu[p.id]);
+      const inc = !s.cot.excluidas[p.id];
+      return pre + `<tr data-pid="${p.id}" style="${inc?'':'opacity:.45'}">
+        <td><input type="checkbox" data-inc="${p.id}" ${inc?'checked':''} style="width:auto"></td>
+        <td class="mono">${cod}</td>
+        <td>${esc(p.name||'(sin nombre)')}</td>
+        <td>${esc(uLabel(p.unit))}</td>
+        <td class="num">${fmtNum(cant,2)}</td>
+        <td class="num"><input data-pu="${p.id}" value="${pu||''}" inputmode="decimal" placeholder="0" style="text-align:right;min-width:92px"></td>
+        <td class="num" data-tot="${p.id}">${fmtCLP(cant*pu)}</td>
+      </tr>`;
+    }).join('');
+
+    $$('[data-pu]',tb).forEach(inp=> inp.oninput = ()=>{
+      const pid = inp.dataset.pu;
+      s.cot.pu[pid] = num(inp.value);
+      const p = s.partidas.find(x=>x.id===pid);
+      $(`[data-tot="${pid}"]`).textContent = fmtCLP(cantidadPartida(p)*num(inp.value));
+      saveDB(); renderTotales();
+    });
+    $$('[data-inc]',tb).forEach(chk=> chk.onchange = ()=>{
+      if(chk.checked) delete s.cot.excluidas[chk.dataset.inc];
+      else s.cot.excluidas[chk.dataset.inc] = true;
+      saveDB(); renderCotiza();
+    });
+  }
+  renderTotales();
+  refreshTabs();
+}
+function renderTotales(){
+  const s = getActive(); if(!s) return;
+  const r = calcCotizacion(s);
+  const sinPU = r.lines.filter(l=> !l.pu).length;
+  $('#cot-totales').innerHTML = `
+    <div class="tot-line"><span>Costo directo (${r.lines.length} partida${r.lines.length===1?'':'s'})</span><span class="v">${fmtCLP(r.costoDirecto)}</span></div>
+    <div class="tot-line"><span>Gastos generales (${fmtNum(num(s.cot.ggPct),1)}%)</span><span class="v">${fmtCLP(r.gg)}</span></div>
+    <div class="tot-line"><span>Utilidad (${fmtNum(num(s.cot.utilidadPct),1)}%)</span><span class="v">${fmtCLP(r.utilidad)}</span></div>
+    ${num(s.cot.descuentoPct)? `<div class="tot-line"><span>Descuento (${fmtNum(num(s.cot.descuentoPct),1)}%)</span><span class="v">−${fmtCLP(r.descuento)}</span></div>`:''}
+    <div class="tot-line"><span>Neto</span><span class="v">${fmtCLP(r.neto)}</span></div>
+    <div class="tot-line"><span>IVA (${fmtNum(num(s.cot.ivaPct),1)}%)</span><span class="v">${fmtCLP(r.iva)}</span></div>
+    <div class="tot-line total"><span>Total</span><span class="v">${fmtCLP(r.total)}</span></div>
+    ${sinPU? `<p class="hint" style="margin-top:10px;color:#C1442D">${sinPU} partida${sinPU===1?'':'s'} sin precio unitario.</p>`:''}`;
+}
+function aplicarPrecios(){
+  const s = getActive(); if(!s) return;
+  let n = 0;
+  const norm = t => String(t||'').toLowerCase().trim();
+  s.partidas.forEach(p=>{
+    if(num(s.cot.pu[p.id])) return;
+    const hit = db.catalogo.find(c=> norm(c.name)===norm(p.name) && c.unit===p.unit)
+             || db.catalogo.find(c=> norm(c.name)===norm(p.name));
+    if(hit){ s.cot.pu[p.id] = hit.pu; n++; }
+  });
+  saveDB(); renderCotiza();
+  toast(n? `${n} precio${n===1?'':'s'} aplicado${n===1?'':'s'} desde el catálogo` : 'No se encontraron coincidencias en el catálogo');
+}
+
+/* ================= PDF COTIZACIÓN ================= */
+function pdfCotizacion(){
+  const s = getActive(); if(!s) return;
+  const r = calcCotizacion(s);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  let y = pdfHeader(doc, 'COTIZACIÓN DE OBRA', s);
+
+  doc.autoTable({
+    startY:y, theme:'plain', styles:{fontSize:9, cellPadding:1.4, textColor:[40,45,50]},
+    columnStyles:{0:{fontStyle:'bold', cellWidth:30}, 2:{fontStyle:'bold', cellWidth:30}},
+    body:[
+      ['Cliente', s.cliente.nombre||'—', 'RUT', s.cliente.rut||'—'],
+      ['Obra', s.obra||'—', 'Contacto', s.cliente.contacto||'—'],
+      ['Dirección', [s.direccion, s.comuna].filter(Boolean).join(', ')||'—', 'Email', s.cliente.email||'—']
+    ]
+  });
+  y = doc.lastAutoTable.finalY + 6;
+
+  const body = []; const capsVistos = [];
+  r.lines.forEach(l=>{
+    if(!capsVistos.includes(l.cap)){
+      capsVistos.push(l.cap);
+      body.push([{content:l.cap, colSpan:6, styles:{fontStyle:'bold', textColor:[46,110,126], fillColor:[238,243,244]}}]);
+    }
+    body.push([l.cod, l.name, uLabel(l.unit), fmtNum(l.cant,2), fmtCLP(l.pu), fmtCLP(l.total)]);
+  });
+  doc.autoTable({
+    startY:y, head:[['Cód.','Partida','Un.','Cant.','P. unit.','Total']],
+    body: body.length? body : [[{content:'Sin partidas cotizadas', colSpan:6, styles:{halign:'center'}}]],
+    theme:'grid', rowPageBreak:'avoid', headStyles:{fillColor:[28,32,36], textColor:[255,255,255], fontSize:9},
+    styles:{fontSize:8.5, cellPadding:2, textColor:[40,45,50]},
+    columnStyles:{0:{cellWidth:14}, 2:{cellWidth:13, halign:'center'}, 3:{cellWidth:20, halign:'right'},
+                  4:{cellWidth:26, halign:'right'}, 5:{cellWidth:28, halign:'right'}}
+  });
+  y = doc.lastAutoTable.finalY + 8;
+  if(y > 235){ doc.addPage(); y = 20; }
+
+  const tot = [
+    ['Costo directo', fmtCLP(r.costoDirecto)],
+    [`Gastos generales (${fmtNum(num(s.cot.ggPct),1)}%)`, fmtCLP(r.gg)],
+    [`Utilidad (${fmtNum(num(s.cot.utilidadPct),1)}%)`, fmtCLP(r.utilidad)]
+  ];
+  if(num(s.cot.descuentoPct)) tot.push([`Descuento (${fmtNum(num(s.cot.descuentoPct),1)}%)`, '-'+fmtCLP(r.descuento)]);
+  tot.push(['Neto', fmtCLP(r.neto)], [`IVA (${fmtNum(num(s.cot.ivaPct),1)}%)`, fmtCLP(r.iva)]);
+  doc.autoTable({
+    startY:y, theme:'plain', margin:{left:110},
+    styles:{fontSize:9.5, cellPadding:1.6, textColor:[40,45,50]},
+    columnStyles:{0:{cellWidth:52}, 1:{cellWidth:32, halign:'right', fontStyle:'bold'}},
+    body: tot
+  });
+  y = doc.lastAutoTable.finalY + 2;
+  doc.setDrawColor(28,32,36); doc.setLineWidth(.6); doc.line(110, y, 194, y);
+  y += 7;
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(28,32,36);
+  doc.text('TOTAL', 110, y);
+  doc.text(fmtCLP(r.total), 194, y, {align:'right'});
+  y += 12;
+
+  if(y > 250){ doc.addPage(); y = 20; }
+  y = pdfSubtitulo(doc, 'Condiciones comerciales', y);
+  const cond = [];
+  if(s.cot.validezDias) cond.push(`Validez de la oferta: ${s.cot.validezDias} días corridos.`);
+  if(s.cot.plazoDias)   cond.push(`Plazo de ejecución: ${s.cot.plazoDias} días corridos desde el inicio de faenas.`);
+  cond.push('Valores en pesos chilenos. Cantidades según levantamiento en terreno ' + s.folio + '.');
+  if(s.cot.notas) cond.push(s.cot.notas);
+  y = pdfParrafo(doc, cond.join('\n'), y);
+
+  y = Math.max(y, 250);
+  doc.setDrawColor(28,32,36); doc.setLineWidth(.3);
+  doc.line(16, y+14, 86, y+14); doc.line(110, y+14, 180, y+14);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(86,93,102);
+  doc.text(s.responsable || (db.config.nombre||'ALFEX'), 16, y+18);
+  doc.text('Acepta cliente', 110, y+18);
+  pdfFooter(doc);
+  doc.save(`Cotizacion_${s.folio}_${slug(s.obra)}.pdf`);
+}
+
+/* ================= EXCEL ================= */
+function exportarExcel(){
+  const s = getActive(); if(!s) return;
+  const r = calcCotizacion(s);
+  const wb = XLSX.utils.book_new();
+
+  const cub = [['Código','Capítulo','Partida','Unidad','Detalle','N','Largo','Ancho','Alto','Parcial']];
+  partidasOrdenadas(s).forEach(({p,cod,cap})=>{
+    (p.meds||[]).forEach(m=>{
+      cub.push([cod, cap, p.name, uLabel(p.unit), m.d, num(m.n)||1, num(m.l), num(m.a), num(m.h), +parcialMed(p,m).toFixed(3)]);
+    });
+    cub.push([cod, cap, p.name, uLabel(p.unit), 'TOTAL PARTIDA','','','','', +cantidadPartida(p).toFixed(3)]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cub), 'Cubicación');
+
+  const cot = [['Código','Capítulo','Partida','Unidad','Cantidad','P. Unitario','Total']];
+  r.lines.forEach(l=> cot.push([l.cod, l.cap, l.name, uLabel(l.unit), +l.cant.toFixed(3), l.pu, +l.total.toFixed(0)]));
+  cot.push([], ['','','','','','Costo directo', Math.round(r.costoDirecto)],
+    ['','','','','',`Gastos generales ${num(s.cot.ggPct)}%`, Math.round(r.gg)],
+    ['','','','','',`Utilidad ${num(s.cot.utilidadPct)}%`, Math.round(r.utilidad)],
+    ['','','','','',`Descuento ${num(s.cot.descuentoPct)}%`, -Math.round(r.descuento)],
+    ['','','','','','Neto', Math.round(r.neto)],
+    ['','','','','',`IVA ${num(s.cot.ivaPct)}%`, Math.round(r.iva)],
+    ['','','','','','TOTAL', Math.round(r.total)]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cot), 'Cotización');
+
+  const ant = [['Folio', s.folio],['Obra', s.obra],['Tipo de obra', s.tipoObra],['Fecha', s.fecha],
+    ['Cliente', s.cliente.nombre],['RUT', s.cliente.rut],['Contacto', s.cliente.contacto],
+    ['Teléfono', s.cliente.telefono],['Email', s.cliente.email],
+    ['Dirección', [s.direccion,s.comuna].filter(Boolean).join(', ')],
+    ['Responsable', s.responsable],['Acceso y faena', s.acceso],['Observaciones', s.observaciones],
+    ['Fotos', (s.fotos||[]).length]];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ant), 'Antecedentes');
+
+  XLSX.writeFile(wb, `Levantamiento_${s.folio}.xlsx`);
+}
+
+/* ================= CONFIG / CATÁLOGO ================= */
+function renderConfig(){
+  $$('[data-e]').forEach(el=>{ el.value = db.config[el.dataset.e] ?? ''; });
+  const tb = $('#tabla-precios tbody');
+  tb.innerHTML = db.catalogo.map(c=>`<tr data-cid="${c.id}">
+    <td><select data-cf="cap">${CAPITULOS.map(x=>`<option ${x===c.cap?'selected':''}>${esc(x)}</option>`).join('')}</select></td>
+    <td><input data-cf="name" value="${esc(c.name)}"></td>
+    <td><select data-cf="unit" style="min-width:64px">${UNIDADES.map(u=>`<option value="${u.u}" ${u.u===c.unit?'selected':''}>${esc(uLabel(u.u))}</option>`).join('')}</select></td>
+    <td class="num"><input data-cf="pu" value="${c.pu}" inputmode="numeric" style="text-align:right;min-width:90px"></td>
+    <td><button class="x" data-delprecio="${c.id}" style="background:none;border:none;color:#C1442D;font-size:17px;cursor:pointer">×</button></td>
+  </tr>`).join('');
+
+  $$('[data-cf]',tb).forEach(el=>{
+    const h = ()=>{
+      const c = db.catalogo.find(x=>x.id===el.closest('tr').dataset.cid);
+      c[el.dataset.cf] = el.dataset.cf==='pu' ? num(el.value) : el.value;
+      marcarAjustes();
+    };
+    el.oninput = h; el.onchange = h;
+  });
+  $$('[data-delprecio]',tb).forEach(b=> b.onclick = ()=>{
+    db.catalogo = db.catalogo.filter(c=>c.id!==b.dataset.delprecio);
+    marcarAjustes(); renderConfig();
+  });
+}
+
+/* ================= RESPALDO ================= */
+async function exportarJSON(){
+  const fotos = {};
+  for(const s of db.surveys){
+    for(const f of (s.fotos||[])){
+      const rec = await photoGet(f.id);
+      if(rec) fotos[f.id] = rec;
+    }
+  }
+  const blob = new Blob([JSON.stringify({v:1, db, fotos}, null, 1)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `respaldo_alfex_${hoyISO()}.json`;
+  a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+  toast('Respaldo descargado');
+}
+async function importarJSON(file){
+  try{
+    const txt = await file.text();
+    const data = JSON.parse(txt);
+    if(!data.db || !Array.isArray(data.db.surveys)) throw new Error('formato');
+    if(!confirm(`El respaldo tiene ${data.db.surveys.length} levantamiento(s). ¿Reemplazar los datos actuales de este dispositivo?`)) return;
+    db = data.db;
+    db.config = Object.assign({}, CONFIG_BASE, db.config||{});
+    if(!Array.isArray(db.catalogo) || !db.catalogo.length) db.catalogo = CATALOGO_BASE.map(c=>({id:uid(),...c}));
+    for(const [id, rec] of Object.entries(data.fotos||{})) await photoPut(rec);
+    db.borrados = []; db.fotosSubidas = {};
+    db.surveys.forEach(s2=> s2.dirty = true);
+    activeId = null;
+    saveLocal(); programarSync(); refreshTabs(); setView('list');
+    toast('Respaldo importado');
+  }catch(e){ alert('No se pudo leer el archivo de respaldo.'); }
+}
+
+/* ================= EVENTOS ================= */
+$$('nav.tabs button').forEach(b=> b.onclick = ()=>{ if(!b.disabled) setView(b.dataset.view); });
+
+$('#btn-nuevo').onclick = ()=>{
+  const s = nuevoLevantamiento();
+  db.surveys.push(s); saveDB();
+  abrirLev(s.id);
+  toast('Levantamiento ' + s.folio + ' creado');
+};
+$('#buscar').oninput = renderLista;
+
+$$('[data-f]').forEach(el=> el.oninput = ()=>{
+  const s = getActive(); if(!s) return;
+  setPath(s, el.dataset.f, el.value);
+  saveDB(); refreshTabs();
+});
+$('#btn-add-partida').onclick = ()=>{
+  const s = getActive(); if(!s) return;
+  const ult = s.partidas[s.partidas.length-1];
+  s.partidas.push(nuevaPartida(ult && ult.cap));
+  saveDB(); renderPartidas();
+  const cards = $$('.partida'); if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth', block:'center'});
+};
+$('#inp-foto-gen').onchange = e=> agregarFotos(e.target.files, null);
+$('#btn-gps').onclick = ()=>{
+  const s = getActive(); if(!s) return;
+  if(!navigator.geolocation){ toast('Este dispositivo no entrega GPS'); return; }
+  toast('Buscando señal GPS…');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    s.gps = {lat:pos.coords.latitude, lon:pos.coords.longitude};
+    $('#gps-txt').textContent = `${s.gps.lat.toFixed(5)}, ${s.gps.lon.toFixed(5)}`;
+    saveDB(); toast('Coordenadas registradas');
+  }, ()=> toast('No se pudo obtener la ubicación'), {enableHighAccuracy:true, timeout:12000});
+};
+
+$$('[data-c]').forEach(el=> el.oninput = ()=>{
+  const s = getActive(); if(!s) return;
+  s.cot[el.dataset.c] = (el.type==='number') ? num(el.value) : el.value;
+  saveDB(); renderTotales();
+});
+$('#btn-aplicar-precios').onclick = aplicarPrecios;
+$('#btn-pdf-informe').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfInforme(), 60); };
+$('#btn-pdf-cotiza').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCotizacion(), 60); };
+$('#btn-xls').onclick = exportarExcel;
+
+$$('[data-e]').forEach(el=> el.oninput = ()=>{
+  db.config[el.dataset.e] = el.type==='number' ? num(el.value) : el.value;
+  marcarAjustes();
+});
+$('#btn-add-precio').onclick = ()=>{
+  db.catalogo.unshift({id:uid(), cap:CAPITULOS[0], name:'Nueva partida', unit:'m2', pu:0});
+  marcarAjustes(); renderConfig();
+};
+$('#btn-reset-catalogo').onclick = ()=>{
+  if(!confirm('¿Restaurar el catálogo base? Se perderán los precios editados.')) return;
+  db.catalogo = CATALOGO_BASE.map(c=>({id:uid(),...c}));
+  marcarAjustes(); renderConfig(); toast('Catálogo restaurado');
+};
+$('#btn-export-json').onclick = exportarJSON;
+$('#btn-import-json').onclick = ()=> $('#file-import').click();
+$('#file-import').onchange = e=>{ if(e.target.files[0]) importarJSON(e.target.files[0]); e.target.value=''; };
+$('#btn-cerrar-lev').onclick = ()=>{ activeId = null; refreshTabs(); setView('list'); };
+$('#btn-ir-informe').onclick = ()=> setView('informe');
+
+/* ================= NUBE ================= */
+/* Offline primero: todo se guarda en el dispositivo y se sube cuando hay red.
+   La clave compartida viaja en el encabezado x-alfex-clave. */
+const NUBE = {
+  disponible: location.protocol === 'http:' || location.protocol === 'https:',
+  hayApi: null,          // null = sin averiguar todavia
+  clave: '',
+  corriendo: false,
+  estado: 'local',
+  timer: null
+};
+try{ NUBE.clave = localStorage.getItem('alfex_clave') || ''; }catch(e){}
+
+async function api(ruta, opts = {}){
+  const headers = Object.assign({'x-alfex-clave': NUBE.clave}, opts.headers || {});
+  if(opts.body) headers['content-type'] = 'application/json';
+  const r = await fetch('/api/' + ruta, Object.assign({}, opts, {headers}));
+  if(!(r.headers.get('content-type')||'').includes('json')){
+    NUBE.hayApi = false;                    // sitio publicado sin la funcion
+    throw new Error('sinapi');
+  }
+  if(r.status === 401) throw new Error('clave');
+  if(r.status === 404 && opts.method === undefined) return null;
+  if(!r.ok){
+    let detalle = '';
+    try{ detalle = (await r.json()).error || ''; }catch(e){}
+    throw new Error(detalle || ('HTTP ' + r.status));
+  }
+  return r.json();
+}
+
+const ETIQUETA_NUBE = {
+  local:   ['Solo este equipo', ''],
+  sinclave:['Sin clave',        'pend'],
+  sinnube: ['Solo este equipo',  ''],
+  sync:    ['Sincronizando…',   'pend'],
+  ok:      ['Guardado en la nube','ok'],
+  pend:    ['Cambios pendientes','pend'],
+  sinred:  ['Sin conexión',     'pend'],
+  clavemala:['Clave incorrecta','err'],
+  error:   ['Error al sincronizar','err']
+};
+function setNube(estado){
+  NUBE.estado = estado;
+  const [txt, cls] = ETIQUETA_NUBE[estado] || ETIQUETA_NUBE.local;
+  const chip = $('#nube-chip');
+  if(chip){ chip.textContent = txt; chip.className = 'nube-chip ' + cls; }
+  const badge = $('#nube-estado');
+  if(badge){ badge.textContent = txt; badge.className = 'pill ' + (cls==='ok'?'ok':cls==='err'?'gray':'gray'); }
+}
+function hayPendientes(){
+  return db.surveys.some(s=>s.dirty) || (db.borrados||[]).length > 0;
+}
+function programarSync(){
+  if(!NUBE.disponible || !NUBE.clave || NUBE.hayApi === false) return;
+  setNube(hayPendientes() ? 'pend' : NUBE.estado);
+  clearTimeout(NUBE.timer);
+  NUBE.timer = setTimeout(()=> sincronizar(), 2500);
+}
+
+async function sincronizar(manual = false){
+  if(!NUBE.disponible){ setNube('local'); return; }
+  if(!NUBE.clave){ setNube('sinclave'); return; }
+  if(NUBE.hayApi === false){ setNube('sinnube'); return; }
+  if(NUBE.corriendo) return;
+  if(!navigator.onLine){ setNube('sinred'); return; }
+  NUBE.corriendo = true;
+  setNube('sync');
+  let cambios = false;
+  try{
+    // 1. Levantamientos eliminados en este equipo
+    for(const id of (db.borrados||[]).slice()){
+      await api('levantamientos/' + id, {method:'DELETE'});
+      db.borrados = db.borrados.filter(x=> x !== id);
+    }
+
+    // 2. Bajar lo que hay en el servidor
+    const remotos = await api('levantamientos') || [];
+    for(const r of remotos){
+      if(!r || !r.id) continue;
+      const local = db.surveys.find(x=> x.id === r.id);
+      if(!local){
+        r.dirty = false;
+        db.surveys.push(r);
+        cambios = true;
+      } else if(!local.dirty && (r.updatedAt||0) > (local.updatedAt||0)){
+        Object.assign(local, r, {dirty:false});
+        cambios = true;
+      }
+    }
+
+    // 3. Subir lo pendiente de este equipo (las fotos primero)
+    const idsRemotos = remotos.map(r=> r && r.id);
+    for(const s of db.surveys){
+      if(!s.dirty && idsRemotos.includes(s.id)) continue;
+      for(const f of (s.fotos||[])){
+        if(db.fotosSubidas[f.id]) continue;
+        const rec = await photoGet(f.id, false);
+        if(!rec) continue;
+        await api('fotos/' + f.id, {method:'PUT', body: JSON.stringify({full:rec.full, thumb:rec.thumb, w:rec.w, h:rec.h})});
+        db.fotosSubidas[f.id] = 1;
+      }
+      const copia = Object.assign({}, s);
+      delete copia.dirty;
+      await api('levantamientos/' + s.id, {method:'PUT', body: JSON.stringify(copia)});
+      s.dirty = false;
+    }
+
+    // 4. Ajustes compartidos: gana la version mas nueva
+    const rem = await api('ajustes');
+    const tsRemoto = (rem && rem.ts) || 0;
+    if(tsRemoto > (db.ajustesTs||0)){
+      db.config = Object.assign({}, CONFIG_BASE, rem.config || {});
+      if(Array.isArray(rem.catalogo) && rem.catalogo.length) db.catalogo = rem.catalogo;
+      db.ajustesTs = tsRemoto;
+      cambios = true;
+    } else if((db.ajustesTs||0) > tsRemoto){
+      await api('ajustes', {method:'PUT', body: JSON.stringify({config:db.config, catalogo:db.catalogo, ts:db.ajustesTs})});
+    }
+
+    saveLocal();
+    setNube(hayPendientes() ? 'pend' : 'ok');
+    if(manual) toast('Sincronizado con la nube');
+    if(cambios) refrescarVista();
+  }catch(e){
+    const malaClave = e.message === 'clave';
+    const sinApi = e.message === 'sinapi';
+    setNube(malaClave ? 'clavemala' : sinApi ? 'sinnube' : 'error');
+    saveLocal();
+    if(manual) toast(malaClave ? 'La clave de acceso es incorrecta'
+      : sinApi ? 'Este sitio no tiene el guardado en la nube instalado'
+      : 'No se pudo sincronizar: ' + e.message);
+  }finally{
+    NUBE.corriendo = false;
+  }
+}
+/** Refresca la vista actual, salvo que el usuario este escribiendo. */
+function refrescarVista(){
+  const act = document.activeElement;
+  if(act && ['INPUT','TEXTAREA','SELECT'].includes(act.tagName)) return;
+  if(currentView === 'list') renderLista();
+  else if(currentView === 'cotiza') renderCotiza();
+  else if(currentView === 'informe') renderInforme();
+  else if(currentView === 'config') renderConfig();
+  else if(currentView === 'ficha' && getActive()) renderFicha();
+}
+
+$('#nube-chip').onclick = ()=> setView('config');
+$('#nube-clave').oninput = ()=>{
+  NUBE.clave = $('#nube-clave').value.trim();
+  try{ localStorage.setItem('alfex_clave', NUBE.clave); }catch(e){}
+  setNube(NUBE.clave ? 'pend' : 'sinclave');
+};
+$('#btn-sincronizar').onclick = ()=> sincronizar(true);
+window.addEventListener('online', ()=> sincronizar());
+
+/* ================= INIT ================= */
+loadDB();
+refreshTabs();
+renderLista();
+$('#nube-clave').value = NUBE.clave;
+setNube(!NUBE.disponible ? 'local' : 'sync');
+/** Averigua si este sitio trae la API de la nube antes de intentar nada. */
+(async function detectarNube(){
+  if(!NUBE.disponible){ setNube('local'); return; }
+  try{
+    const r = await fetch('/api/estado', {headers:{'x-alfex-clave': NUBE.clave || 'sin-clave'}});
+    if(!(r.headers.get('content-type')||'').includes('json')){
+      NUBE.hayApi = false; setNube('sinnube'); return;
+    }
+    NUBE.hayApi = true;
+    if(NUBE.clave) sincronizar(); else setNube('sinclave');
+  }catch(e){ setNube('sinred'); }
+})();
+</script>
+</body>
+</html>

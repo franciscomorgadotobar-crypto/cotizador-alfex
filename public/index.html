@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#3e3f42">
+<title>ALFEX · Levantamiento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ═══ Industry design system · marca ALFEX (naranjo + gris) ═══ */
+:root{
+  --color-bg:#f2f2f3;
+  --color-surface:#e9e9ea;
+  --color-text:#1d1f20;
+  --color-divider:color-mix(in srgb, #1d1f20 16%, transparent);
+  --color-accent:#e2651c;
+  --color-accent-2:#8a8d90;
+  --color-accent-100:#fdf1e8;
+  --color-accent-200:#fadfc9;
+  --color-accent-300:#f6c39c;
+  --color-accent-400:#f0a26c;
+  --color-accent-500:#e8813f;
+  --color-accent-600:#cf5d16;
+  --color-accent-700:#a84a11;
+  --color-accent-800:#7a360c;
+  --color-accent-900:#3e3f42;
+  --color-neutral-100:#f5f5f8; --color-neutral-200:#e7e7ea; --color-neutral-300:#d4d4d7;
+  --color-neutral-400:#b7b7ba; --color-neutral-500:#98989b; --color-neutral-600:#7a7a7d;
+  --color-neutral-700:#5d5d60; --color-neutral-800:#424244; --color-neutral-900:#2b2b2d;
+  --font-heading:"Barlow Condensed", system-ui, sans-serif;
+  --font-body:"Barlow", system-ui, sans-serif;
+  --space-1:3.4px; --space-2:6.8px; --space-3:10.2px; --space-4:13.6px; --space-6:20.4px;
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{
+  background:var(--color-neutral-300);
+  color:var(--color-text);
+  font-family:var(--font-body);
+  font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--font-heading);font-weight:600;line-height:1.12;letter-spacing:-0.015em;margin:0 0 var(--space-2);}
+p{margin:0 0 var(--space-3);}
+:focus{outline:none;}
+:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px;}
+::selection{background:color-mix(in srgb, var(--color-accent) 30%, transparent);}
+img{display:block;max-width:100%;}
+figure{margin:0;}
+
+/* ── Objetos de plano ── */
+.blueprint{position:relative;border:1px solid var(--color-divider);border-radius:0;}
+.blueprint>.corner{position:absolute;width:11px;height:11px;color:color-mix(in srgb, var(--color-text) 55%, transparent);}
+.blueprint>.corner::before,.blueprint>.corner::after{content:"";position:absolute;background:currentColor;}
+.blueprint>.corner::before{left:5px;top:0;width:1px;height:100%;}
+.blueprint>.corner::after{top:5px;left:0;width:100%;height:1px;}
+.blueprint>.corner.tl{top:-6px;left:-6px;} .blueprint>.corner.tr{top:-6px;right:-6px;}
+.blueprint>.corner.bl{bottom:-6px;left:-6px;} .blueprint>.corner.br{bottom:-6px;right:-6px;}
+
+/* ── Botones ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;
+  font-family:var(--font-heading);font-weight:600;font-size:14px;line-height:1.2;
+  color:var(--color-text);background:transparent;border:1px solid var(--color-divider);
+  border-radius:0;padding:var(--space-2) calc(var(--space-3)*1.2);min-height:44px;}
+.btn svg{display:block;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-primary{background:var(--color-accent);color:var(--color-bg);border-color:var(--color-accent);}
+.btn-primary:hover{background:var(--color-accent-600);}
+.btn-primary:active{background:var(--color-accent-700);}
+.btn-secondary:hover{background:color-mix(in srgb, var(--color-text) 7%, transparent);}
+.btn-secondary:active{background:color-mix(in srgb, var(--color-text) 14%, transparent);}
+.btn-ghost{color:var(--color-accent);border-color:transparent;padding-inline:var(--space-1);min-height:0;}
+.btn-ghost:hover{background:color-mix(in srgb, var(--color-accent) 10%, transparent);}
+.btn-block{width:100%;margin-top:var(--space-2);}
+
+/* ── Formularios ── */
+.input{width:100%;min-height:44px;padding:6px 10px;font:inherit;font-size:14px;
+  color:var(--color-text);caret-color:var(--color-accent);background:var(--color-surface);
+  border:1px solid var(--color-divider);border-radius:0;}
+.input:hover{border-color:color-mix(in srgb, var(--color-text) 45%, transparent);}
+.input:focus-visible{border-color:var(--color-accent);outline-offset:0;}
+textarea.input{min-height:44px;resize:vertical;}
+.cap{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;opacity:.7;}
+
+/* ── Tarjetas, tags, tablas ── */
+.card{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3);
+  border-radius:0;background:transparent;border:1px solid var(--color-divider);}
+.card-kicker{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent);}
+.card-title{font-family:var(--font-heading);font-weight:600;font-size:17px;line-height:1.2;text-wrap:pretty;}
+.tag{display:inline-flex;align-items:center;font-size:11px;letter-spacing:.02em;padding:3px 10px;border-radius:0;}
+.tag-accent{background:var(--color-accent-100);color:var(--color-accent-800);}
+.tag-neutral{background:var(--color-neutral-100);color:var(--color-neutral-800);}
+.tag-outline{border:1px solid var(--color-accent);color:var(--color-accent);}
+.table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.table th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding:var(--space-2);border-bottom:1px solid var(--color-divider);}
+.table td{padding:var(--space-2);border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent);}
+.table .num{text-align:right;font-family:var(--font-heading);font-weight:600;font-size:15px;white-space:nowrap;}
+
+/* ═══ Chrome de la app ═══ */
+#app{width:100%;max-width:520px;margin:0 auto;min-height:100vh;background:var(--color-bg);
+  border-left:1px solid var(--color-divider);border-right:1px solid var(--color-divider);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;}
+header.top{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;
+  border-bottom:1px solid var(--color-divider);flex:none;background:var(--color-bg);}
+.logo{width:28px;height:28px;background:var(--color-accent);display:grid;place-items:center;flex:none;}
+.wordmark{font-family:var(--font-heading);font-weight:600;font-size:18px;letter-spacing:.06em;line-height:1;}
+.wordmark .ex{color:var(--color-accent);}
+.bajada{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.55;}
+.netchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--color-divider);
+  padding:5px 8px;font-family:var(--font-heading);font-weight:600;font-size:10px;
+  text-transform:uppercase;letter-spacing:.1em;cursor:pointer;background:transparent;color:var(--color-text);}
+.netchip i{width:7px;height:7px;background:var(--color-neutral-600);display:block;}
+.netchip.on i{background:var(--color-accent);}
+.netchip.warn i{background:var(--color-accent-400);}
+
+nav.roles{display:flex;border-bottom:1px solid var(--color-divider);flex:none;}
+nav.roles button{flex:1;font-family:var(--font-heading);font-weight:600;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.1em;padding:10px 4px;cursor:pointer;
+  background:var(--color-surface);color:color-mix(in srgb, var(--color-text) 65%, transparent);
+  border:none;border-right:1px solid var(--color-divider);min-height:40px;}
+nav.roles button:last-child{border-right:none;}
+nav.roles button.on{background:var(--color-accent-900);color:var(--color-bg);}
+
+main{flex:1;overflow:auto;padding:14px 14px 26px;scrollbar-width:none;}
+main::-webkit-scrollbar{width:0;height:0;}
+.view{display:none;} .view.on{display:block;}
+
+.h2row{display:flex;align-items:baseline;gap:8px;}
+h2{font-size:26px;} .h2big{font-size:29px;}
+.sub{font-size:12.5px;opacity:.7;}
+.kick{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--color-accent);}
+
+/* Selector de recintos */
+.recintos{display:flex;gap:7px;padding:2px 0 12px;overflow-x:auto;scrollbar-width:none;}
+.recintos::-webkit-scrollbar{height:0;}
+.recintos .btn{flex:none;font-size:12.5px;white-space:nowrap;min-height:38px;}
+
+/* Partida en terreno */
+.dims{display:flex;flex-wrap:wrap;gap:8px;}
+.dims label{display:flex;flex-direction:column;gap:3px;}
+.dims .input{width:88px;}
+.qty{font-family:var(--font-heading);font-weight:600;font-size:23px;color:var(--color-accent-700);line-height:1;text-align:right;}
+.qty-un{font-size:10px;text-transform:uppercase;opacity:.6;text-align:right;}
+.fotos{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;}
+.foto{position:relative;width:54px;height:54px;border:1px solid var(--color-divider);background:var(--color-surface);overflow:hidden;}
+.foto img{width:100%;height:100%;object-fit:cover;}
+.foto .lbl{position:absolute;left:0;bottom:0;background:var(--color-bg);font-size:8.5px;padding:1px 3px;}
+.foto .del{position:absolute;top:0;right:0;background:rgba(29,31,32,.75);color:#fff;border:none;width:16px;height:16px;font-size:11px;line-height:1;cursor:pointer;padding:0;}
+.btn-foto{width:54px;height:54px;min-height:54px;flex-direction:column;gap:2px;font-size:9px;padding:0;}
+
+/* Secciones del informe */
+.sec{display:flex;align-items:center;gap:9px;margin:20px 0 8px;}
+.sec .n{font-family:var(--font-heading);font-weight:600;font-size:11.5px;letter-spacing:.1em;color:var(--color-accent);}
+.sec h3{font-size:19px;margin:0;}
+.sec .rule{flex:1;height:1px;background:var(--color-divider);}
+.chk{display:flex;gap:8px;font-size:12.5px;padding:5px 0;border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent);}
+.chk .mk{width:14px;color:var(--color-accent);flex:none;}
+.chk .val{margin-left:auto;opacity:.6;text-align:right;}
+
+/* Resumen económico */
+.resumen{background:var(--color-accent-900);color:var(--color-bg);padding:15px;}
+.resumen .row{display:grid;grid-template-columns:1fr auto;font-size:13px;gap:4px;}
+.resumen hr{border:0;height:1px;background:rgba(242,242,243,.35);margin:10px 0;}
+.resumen .tot-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;}
+.resumen .tot-v{font-family:var(--font-heading);font-weight:600;font-size:29px;line-height:1;}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.kpi{padding:11px;} .kpi .l{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.6;}
+.kpi .v{font-family:var(--font-heading);font-weight:600;font-size:26px;color:var(--color-accent-800);line-height:1.1;}
+.kpi .s{font-size:11px;opacity:.65;}
+
+/* Sheets */
+.overlay{position:absolute;inset:0;background:color-mix(in srgb, var(--color-neutral-900) 52%, transparent);
+  display:none;flex-direction:column;justify-content:flex-end;z-index:60;}
+.overlay.on{display:flex;}
+.overlay .tapzone{flex:1;}
+.sheet{background:var(--color-bg);border-top:1px solid var(--color-divider);padding:14px;max-height:74%;overflow:auto;}
+.sheet h3{font-size:21px;margin:0;}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+
+/* Firma */
+#firma-canvas{width:100%;height:120px;border:1px dashed var(--color-divider);background:var(--color-surface);touch-action:none;display:block;}
+
+.toast{position:absolute;left:14px;right:14px;bottom:16px;padding:10px 12px;
+  background:var(--color-accent-900);color:var(--color-bg);font-size:12.5px;
+  display:none;align-items:center;gap:8px;z-index:80;}
+.toast.on{display:flex;}
+.toast i{width:7px;height:7px;background:var(--color-accent-300);flex:none;}
+.hide{display:none !important;}
+@media print{header.top,nav.roles,.no-print{display:none !important;}#app{max-width:none;border:0;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f2f2f3" stroke-width="1.6" stroke-linecap="square"><path d="M12 3 3 21h4.2L12 10.5 16.8 21H21L12 3Z"></path><path d="M8.6 16.4h6.8"></path></svg>
+    </div>
+    <div style="margin-right:auto;min-width:0">
+      <div class="wordmark">ALF<span class="ex">EX</span></div>
+      <div class="bajada">Obras civiles · Levantamiento</div>
+    </div>
+    <button class="netchip" id="netchip" title="Estado de sincronización"><i></i><span>Sin red</span></button>
+  </header>
+
+  <nav class="roles">
+    <button data-rol="terreno" class="on">Terreno</button>
+    <button data-rol="oficina">Oficina</button>
+    <button data-rol="cliente">Cliente</button>
+  </nav>
+
+  <main id="main">
+    <section class="view on" id="v-visitas"></section>
+    <section class="view" id="v-terreno"></section>
+    <section class="view" id="v-informe"></section>
+    <section class="view" id="v-cotizacion"></section>
+    <section class="view" id="v-oficina"></section>
+    <section class="view" id="v-cliente"></section>
+  </main>
+
+  <div class="overlay" id="overlay">
+    <div class="tapzone" id="overlay-tap"></div>
+    <div class="sheet" id="sheet"></div>
+  </div>
+
+  <div class="toast" id="toast"><i></i><span></span></div>
+</div>
+
+<script>
+/* ═══════════ DATOS BASE (del handoff de diseño) ═══════════ */
+const UNIDADES = {m2:'m²', m3:'m³', ml:'ml', un:'un', gl:'gl', dia:'día'};
+const DIM_LABELS = {largo:'Largo m', ancho:'Ancho m', alto:'Alto m', cantidad:'Cant.'};
+
+const CATALOGO_BASE = [
+  {code:'PIN-01', familia:'Pintura',            desc:'Pintura látex muro interior, 2 manos',   unidad:'m2', pu:4200,   dims:['largo','alto']},
+  {code:'PIN-02', familia:'Pintura',            desc:'Empaste, lijado y sellado de muro',      unidad:'m2', pu:5600,   dims:['largo','alto']},
+  {code:'PIN-03', familia:'Pintura',            desc:'Esmalte al agua en cielo',               unidad:'m2', pu:4900,   dims:['largo','ancho']},
+  {code:'IMP-01', familia:'Impermeabilización', desc:'Membrana asfáltica 4 mm sobre losa',     unidad:'m2', pu:18500,  dims:['largo','ancho']},
+  {code:'IMP-02', familia:'Impermeabilización', desc:'Revestimiento cementicio en muro húmedo',unidad:'m2', pu:12400,  dims:['largo','alto']},
+  {code:'IMP-03', familia:'Impermeabilización', desc:'Sello elástico en junta de encuentro',   unidad:'ml', pu:6800,   dims:['largo']},
+  {code:'MAN-01', familia:'Mantención',         desc:'Reparación de estuco desprendido',       unidad:'m2', pu:14200,  dims:['largo','alto']},
+  {code:'MAN-02', familia:'Mantención',         desc:'Cambio de cubierta zinc-alum 0.35',      unidad:'m2', pu:21500,  dims:['largo','ancho']},
+  {code:'MAN-03', familia:'Mantención',         desc:'Bajada aguas lluvia PVC 110 mm',         unidad:'ml', pu:9300,   dims:['largo']},
+  {code:'MAN-04', familia:'Mantención',         desc:'Retiro de escombros y aseo final',       unidad:'gl', pu:165000, dims:['cantidad']},
+  {code:'INS-01', familia:'Instalaciones',      desc:'Cambio de luminaria LED estanca',        unidad:'un', pu:38500,  dims:['cantidad']},
+  {code:'AND-01', familia:'Apoyo',              desc:'Andamio modular certificado (arriendo)', unidad:'dia',pu:27000,  dims:['cantidad']}
+];
+
+const CHECKLIST_BASE = [
+  {key:'acceso',  label:'Acceso vehicular hasta el frente de trabajo'},
+  {key:'energia', label:'Energía eléctrica disponible en sitio'},
+  {key:'agua',    label:'Punto de agua para faena'},
+  {key:'altura',  label:'Trabajo en altura > 2 m (requiere andamio)'},
+  {key:'humedad', label:'Humedad activa / filtración visible'},
+  {key:'horario', label:'Restricción de horario del mandante'}
+];
+
+const PARAMS_BASE = {gg:0.12, utilidad:0.08, iva:0.19, validezDias:15, plazoDias:12, tarifa:'sept 2025'};
+const EMPRESA_BASE = {nombre:'ALFEX SPA', web:'www.alfex.cl', email:'contacto@alfex.cl',
+                      fono:'+56 9529 0514', fono2:'+56 9 3503 7653', rubro:'Obras civiles'};
+
+const LS_KEY = 'alfex_lt_v2';
+
+/* ═══════════ ESTADO ═══════════ */
+let db = {ots:[], catalogo:[], params:{}, empresa:{}, seqOT:2451, seqCT:100,
+          borrados:[], fotosSubidas:{}, ajustesTs:0};
+let S = {rol:'terreno', view:'visitas', otId:null, areaIdx:0, sheet:null};
+const photoCache = new Map();
+
+/* ═══════════ UTILIDADES ═══════════ */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const uid = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n)?n:0; };
+const money = n => '$' + Math.round(isFinite(n)?n:0).toLocaleString('es-CL');
+const qty = n => (isFinite(n)?n:0).toLocaleString('es-CL', {maximumFractionDigits:2});
+const hoyISO = ()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+function fechaCorta(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('es-CL',{day:'numeric', month:'short'}).replace('.','');
+}
+function fechaLarga(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('es-CL',{weekday:'long', day:'numeric', month:'long'});
+}
+function toast(msg){
+  const t = $('#toast');
+  t.querySelector('span').textContent = msg;
+  t.classList.add('on');
+  clearTimeout(t._h); t._h = setTimeout(()=> t.classList.remove('on'), 2200);
+}
+const corners = '<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>';
+
+/* ═══════════ ALMACENAMIENTO ═══════════ */
+function saveLocal(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+  catch(e){ toast('Almacenamiento lleno. Exporta un respaldo.'); }
+}
+function save(){
+  const ot = getOT();
+  if(ot){ ot.updatedAt = Date.now(); ot.dirty = true; }
+  saveLocal(); programarSync();
+}
+function marcarAjustes(){ db.ajustesTs = Date.now(); saveLocal(); programarSync(); }
+
+function loadDB(){
+  let raw=null;
+  try{ raw = localStorage.getItem(LS_KEY); }catch(e){}
+  if(raw){ try{ db = JSON.parse(raw); }catch(e){ db=null; } }
+  if(!db || typeof db!=='object') db = {};
+  if(!Array.isArray(db.ots)) db.ots = [];
+  if(!Array.isArray(db.catalogo) || !db.catalogo.length) db.catalogo = CATALOGO_BASE.map(c=>({id:uid(), ...c}));
+  db.params  = Object.assign({}, PARAMS_BASE, db.params||{});
+  db.empresa = Object.assign({}, EMPRESA_BASE, db.empresa||{});
+  if(!db.seqOT) db.seqOT = 2451;
+  if(!db.seqCT) db.seqCT = 100;
+  if(!Array.isArray(db.borrados)) db.borrados = [];
+  if(!db.fotosSubidas || typeof db.fotosSubidas!=='object') db.fotosSubidas = {};
+  if(!db.ajustesTs) db.ajustesTs = 0;
+  // Datos de la version anterior: se convierten al modelo del diseno.
+  db.ots = db.ots.map(o=> (o && !o.recintos && Array.isArray(o.partidas)) ? migrarV1(o) : o).filter(Boolean);
+}
+
+/* ── Fotos: IndexedDB local + nube ── */
+let idbP = null;
+function idb(){
+  if(idbP) return idbP;
+  idbP = new Promise((res,rej)=>{
+    if(!window.indexedDB){ rej(new Error('sin idb')); return; }
+    const rq = indexedDB.open('alfex_fotos', 1);
+    rq.onupgradeneeded = ()=> rq.result.createObjectStore('fotos', {keyPath:'id'});
+    rq.onsuccess = ()=> res(rq.result);
+    rq.onerror = ()=> rej(rq.error);
+  });
+  return idbP;
+}
+async function photoPut(rec){
+  try{
+    const d = await idb();
+    await new Promise((res,rej)=>{ const tx=d.transaction('fotos','readwrite'); tx.objectStore('fotos').put(rec); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+  }catch(e){}
+  photoCache.set(rec.id, rec);
+}
+async function photoGet(id, permitirNube = true){
+  if(photoCache.has(id)) return photoCache.get(id);
+  let rec = null;
+  try{
+    const d = await idb();
+    rec = await new Promise((res,rej)=>{ const rq=d.transaction('fotos').objectStore('fotos').get(id); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
+  }catch(e){}
+  if(rec){ photoCache.set(id, rec); return rec; }
+  if(permitirNube && NUBE.hayApi && NUBE.clave){
+    try{
+      const r = await api('fotos/'+id);
+      if(r && r.full){
+        const c = {id, full:r.full, thumb:r.thumb||r.full, w:r.w||1, h:r.h||1};
+        await photoPut(c); db.fotosSubidas[id]=1; return c;
+      }
+    }catch(e){}
+  }
+  return null;
+}
+async function photoDel(id){
+  photoCache.delete(id);
+  try{
+    const d = await idb();
+    await new Promise((res,rej)=>{ const tx=d.transaction('fotos','readwrite'); tx.objectStore('fotos').delete(id); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); });
+  }catch(e){}
+}
+function fileToPhoto(file, id){
+  return new Promise((resolve,reject)=>{
+    const fr = new FileReader();
+    fr.onerror = ()=> reject(fr.error);
+    fr.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('imagen inválida'));
+      img.onload = ()=>{
+        const draw = (max,q)=>{
+          const sc = Math.min(1, max/Math.max(img.width,img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1,Math.round(img.width*sc));
+          c.height = Math.max(1,Math.round(img.height*sc));
+          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+          return {data:c.toDataURL('image/jpeg',q), w:c.width, h:c.height};
+        };
+        const full = draw(1400,0.72), th = draw(220,0.6);
+        resolve({id, full:full.data, thumb:th.data, w:full.w, h:full.h});
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* ═══════════ MODELO ═══════════ */
+function nuevaOT(){
+  const checks = {};
+  CHECKLIST_BASE.forEach(c=> checks[c.key] = {on:false, valor:''});
+  return {
+    id: uid(),
+    codigo: 'OT-' + (db.seqOT++),
+    obra:'', mandante:'', email:'', direccion:'', comuna:'', gps:null,
+    fechaVisita: hoyISO(), levantoPor:'', estado:'en_terreno',
+    checks,
+    recintos: [{id:uid(), nombre:'Recinto 1', items:[]}],
+    fotos: [],
+    cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas:'', plazoDias: db.params.plazoDias},
+    firma: {firmado:false, por:'', fecha:'', dataUrl:''},
+    createdAt: Date.now(), updatedAt: Date.now(), dirty:true
+  };
+}
+/** Convierte un levantamiento de la version anterior (capitulos + lineas de
+ *  medicion) al modelo del diseno (recintos + partidas), conservando cantidades. */
+function migrarV1(v){
+  if(!v || v.recintos || !Array.isArray(v.partidas)) return v;
+  const U = {m2:'m2', m3:'m3', ml:'ml', un:'un', gl:'gl', kg:'un', hh:'un', 'día':'dia'};
+  const dimsDe = u => (u==='m2'||u==='m3') ? ['largo','alto'] : (u==='ml' ? ['largo'] : ['cantidad']);
+  const cant = pa => (pa.meds||[]).reduce((acc,m)=>{
+    const n = (m.n===''||m.n==null) ? 1 : (parseFloat(String(m.n).replace(',','.'))||0);
+    const d = k => parseFloat(String(m[k]??'').replace(',','.'))||0;
+    if(pa.unit==='m2') return acc + n*d('l')*d('a');
+    if(pa.unit==='m3') return acc + n*d('l')*d('a')*d('h');
+    if(pa.unit==='ml') return acc + n*d('l');
+    return acc + n;
+  }, 0);
+  const items = (v.partidas||[]).map(pa=>({
+    id: pa.id || uid(), code: (pa.cap||'MIG').slice(0,3).toUpperCase(), familia: pa.cap || 'Migrado',
+    desc: pa.name || '(sin nombre)', unidad: U[pa.unit] || 'un', pu: 0,
+    dims:['cantidad'], med:{cantidad: +cant(pa).toFixed(3)}, nota: pa.obs || ''
+  }));
+  const recinto = {id: uid(), nombre:'Levantamiento', items};
+  const checks = {}; CHECKLIST_BASE.forEach(c=> checks[c.key] = {on:false, valor:''});
+  if(v.acceso) checks.acceso = {on:true, valor: v.acceso.slice(0,60)};
+  return {
+    id: v.id, codigo: v.folio || ('OT-' + (db.seqOT++)),
+    obra: v.obra||'', mandante: (v.cliente&&v.cliente.nombre)||'', email:(v.cliente&&v.cliente.email)||'',
+    direccion: v.direccion||'', comuna: v.comuna||'', gps: v.gps||null,
+    fechaVisita: v.fecha || hoyISO(), levantoPor: v.responsable||'', estado:'en_terreno',
+    checks, recintos:[recinto],
+    fotos: (v.fotos||[]).map((f,i)=> ({id:f.id, itemId:f.partidaId, recintoId:recinto.id, label:'F'+(i+1)})),
+    cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas: v.observaciones||'', plazoDias: db.params.plazoDias},
+    firma: {firmado:false, por:'', fecha:'', dataUrl:''},
+    createdAt: v.createdAt || Date.now(), updatedAt: v.updatedAt || Date.now(), dirty:true
+  };
+}
+const getOT = ()=> db.ots.find(o=> o.id === S.otId) || null;
+const getRecinto = ot => (ot && ot.recintos[S.areaIdx]) || (ot && ot.recintos[0]) || null;
+const todosItems = ot => (ot.recintos||[]).flatMap(r=> r.items.map(i=>({item:i, recinto:r})));
+
+/** La cantidad se calcula: producto de las dimensiones de su unidad. */
+function cantidadItem(ot, item){
+  const ov = ot.cot.qty[item.id];
+  if(ov !== undefined && ov !== '' && ov !== null) return num(ov);
+  const dims = item.dims && item.dims.length ? item.dims : ['cantidad'];
+  return dims.reduce((acc,d)=> acc * num(item.med[d]), 1);
+}
+function fotosDeItem(ot, itemId){ return (ot.fotos||[]).filter(f=> f.itemId === itemId); }
+
+/** Fórmulas del handoff, exactas. */
+function calcular(ot){
+  const lineas = todosItems(ot)
+    .filter(({item})=> !ot.cot.excluidas[item.id])
+    .map(({item, recinto})=>{
+      const cantidad = cantidadItem(ot, item);
+      const pu = ot.cot.pu[item.id] !== undefined ? num(ot.cot.pu[item.id]) : num(item.pu);
+      return {item, recinto, cantidad, pu, total: cantidad * pu};
+    });
+  const neto = lineas.reduce((s,l)=> s + l.total, 0);
+  const gg = neto * db.params.gg;
+  const utilidad = neto * db.params.utilidad;
+  const subtotal = neto + gg + utilidad;
+  const iva = subtotal * db.params.iva;
+  return {lineas, neto, gg, utilidad, subtotal, iva, total: subtotal + iva};
+}
+function conteos(ot){
+  const items = todosItems(ot);
+  return {partidas: items.length, fotos: (ot.fotos||[]).length, recintos: (ot.recintos||[]).length};
+}
+function checksActivos(ot){ return CHECKLIST_BASE.filter(c=> ot.checks[c.key] && ot.checks[c.key].on).length; }
+</script>
+
+<script>
+/* ═══════════ NUBE (offline primero) ═══════════ */
+const NUBE = {
+  disponible: location.protocol === 'http:' || location.protocol === 'https:',
+  hayApi: null, clave: '', corriendo:false, estado:'local', timer:null
+};
+try{ NUBE.clave = localStorage.getItem('alfex_clave') || ''; }catch(e){}
+
+async function api(ruta, opts={}){
+  const headers = Object.assign({'x-alfex-clave': NUBE.clave}, opts.headers||{});
+  if(opts.body) headers['content-type'] = 'application/json';
+  const r = await fetch('/api/'+ruta, Object.assign({}, opts, {headers}));
+  if(!(r.headers.get('content-type')||'').includes('json')){ NUBE.hayApi = false; throw new Error('sinapi'); }
+  if(r.status === 401) throw new Error('clave');
+  if(!r.ok){
+    let d=''; try{ d = (await r.json()).error||''; }catch(e){}
+    throw new Error(d || ('HTTP '+r.status));
+  }
+  return r.json();
+}
+const NUBE_TXT = {
+  local:['Sin red',''], sinnube:['Sin red',''], sinclave:['Sin clave','warn'],
+  sync:['Sincroniza…','warn'], ok:['En línea','on'], pend:['Pendiente','warn'],
+  sinred:['Sin red',''], clavemala:['Clave mala','warn'], error:['Error','warn']
+};
+function setNube(e){
+  NUBE.estado = e;
+  const [txt, cls] = NUBE_TXT[e] || NUBE_TXT.local;
+  const c = $('#netchip');
+  if(c){ c.querySelector('span').textContent = txt; c.className = 'netchip ' + cls; }
+}
+const hayPendientes = ()=> db.ots.some(o=>o.dirty) || (db.borrados||[]).length > 0;
+function programarSync(){
+  if(!NUBE.disponible || !NUBE.clave || NUBE.hayApi === false) return;
+  if(hayPendientes()) setNube('pend');
+  clearTimeout(NUBE.timer);
+  NUBE.timer = setTimeout(()=> sincronizar(), 2500);
+}
+async function sincronizar(manual=false){
+  if(!NUBE.disponible){ setNube('local'); return; }
+  if(!NUBE.clave){ setNube('sinclave'); return; }
+  if(NUBE.hayApi === false){ setNube('sinnube'); return; }
+  if(NUBE.corriendo) return;
+  if(!navigator.onLine){ setNube('sinred'); return; }
+  NUBE.corriendo = true; setNube('sync');
+  let cambios = false;
+  try{
+    for(const id of (db.borrados||[]).slice()){
+      await api('levantamientos/'+id, {method:'DELETE'});
+      db.borrados = db.borrados.filter(x=> x!==id);
+    }
+    const remotos = await api('levantamientos') || [];
+    for(let r of remotos){
+      if(!r || !r.id) continue;
+      if(!r.recintos && Array.isArray(r.partidas)){ r = migrarV1(r); cambios = true; }
+      const local = db.ots.find(o=> o.id === r.id);
+      if(!local){ r.dirty = false; db.ots.push(r); cambios = true; }
+      else if(!local.dirty && (r.updatedAt||0) > (local.updatedAt||0)){ Object.assign(local, r, {dirty:false}); cambios = true; }
+    }
+    // Dos equipos sin señal pueden emitir el mismo correlativo: se resuelve al sincronizar.
+    const nDe = (cod, pre)=>{ const m = String(cod||'').match(new RegExp('^'+pre+'-(\\d+)')); return m ? +m[1] : 0; };
+    db.seqOT = Math.max(db.seqOT, ...remotos.map(r=> nDe(r.codigo,'OT') + 1));
+    db.seqCT = Math.max(db.seqCT, ...remotos.map(r=> nDe(r.cot && r.cot.numero,'CT') + 1));
+    for(const ot of db.ots){
+      const choqueOT = remotos.find(r=> r.id !== ot.id && r.codigo === ot.codigo);
+      if(choqueOT && ot.dirty){
+        const viejo = ot.codigo;
+        ot.codigo = 'OT-' + (db.seqOT++);
+        cambios = true;
+        toast(`${viejo} ya existía: esta pasa a ser ${ot.codigo}.`);
+      }
+      const choqueCT = ot.cot.numero && remotos.find(r=> r.id !== ot.id && r.cot && r.cot.numero === ot.cot.numero);
+      if(choqueCT && ot.dirty){
+        ot.cot.numero = 'CT-' + (db.seqCT++) + '/' + String(new Date().getFullYear()).slice(2);
+        cambios = true;
+      }
+    }
+    const ids = remotos.map(r=> r && r.id);
+    for(const ot of db.ots){
+      if(!ot.dirty && ids.includes(ot.id)) continue;
+      for(const f of (ot.fotos||[])){
+        if(db.fotosSubidas[f.id]) continue;
+        const rec = await photoGet(f.id, false);
+        if(!rec) continue;
+        await api('fotos/'+f.id, {method:'PUT', body: JSON.stringify({full:rec.full, thumb:rec.thumb, w:rec.w, h:rec.h})});
+        db.fotosSubidas[f.id] = 1;
+      }
+      const copia = Object.assign({}, ot); delete copia.dirty;
+      await api('levantamientos/'+ot.id, {method:'PUT', body: JSON.stringify(copia)});
+      ot.dirty = false;
+    }
+    const rem = await api('ajustes');
+    const ts = (rem && rem.ts) || 0;
+    if(ts > (db.ajustesTs||0)){
+      db.params  = Object.assign({}, PARAMS_BASE, rem.params||{});
+      db.empresa = Object.assign({}, EMPRESA_BASE, rem.empresa||{});
+      if(Array.isArray(rem.catalogo) && rem.catalogo.length) db.catalogo = rem.catalogo;
+      db.ajustesTs = ts; cambios = true;
+    } else if((db.ajustesTs||0) > ts){
+      await api('ajustes', {method:'PUT', body: JSON.stringify({params:db.params, empresa:db.empresa, catalogo:db.catalogo, ts:db.ajustesTs})});
+    }
+    saveLocal();
+    setNube(hayPendientes() ? 'pend' : 'ok');
+    if(manual) toast('Sincronizado con la nube.');
+    if(cambios) render();
+  }catch(e){
+    const mala = e.message==='clave', sinApi = e.message==='sinapi';
+    setNube(mala ? 'clavemala' : sinApi ? 'sinnube' : 'error');
+    saveLocal();
+    if(manual) toast(mala ? 'La clave de acceso es incorrecta.' : sinApi ? 'Este sitio no tiene la nube instalada.' : 'No se pudo sincronizar.');
+  }finally{ NUBE.corriendo = false; }
+}
+
+/* ═══════════ NAVEGACIÓN ═══════════ */
+const VISTA_POR_ROL = {terreno:'visitas', oficina:'oficina', cliente:'cliente'};
+function irA(view){ S.view = view; cerrarSheet(); render(); $('#main').scrollTop = 0; }
+function setRol(rol){
+  S.rol = rol;
+  $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol === rol));
+  irA(VISTA_POR_ROL[rol]);
+}
+function render(){
+  $$('.view').forEach(v=> v.classList.toggle('on', v.id === 'v-'+S.view));
+  const f = {visitas:vVisitas, terreno:vTerreno, informe:vInforme,
+             cotizacion:vCotizacion, oficina:vOficina, cliente:vCliente}[S.view];
+  if(f) f();
+}
+
+/* ═══════════ 1 · VISITAS ═══════════ */
+function vVisitas(){
+  const tags = {en_terreno:['En terreno','tag-accent'], cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
+  const ots = db.ots.slice().sort((a,b)=> b.updatedAt - a.updatedAt);
+  $('#v-visitas').innerHTML = `
+    <div class="h2row"><h2 class="h2big" style="margin:0">Visitas</h2>
+      <span style="font-size:11.5px;opacity:.6">${esc(fechaLarga(hoyISO()))}</span></div>
+    <p class="sub">Toca una OT para capturar fotos y medidas en terreno.</p>
+    <div style="display:flex;flex-direction:column;gap:15px">
+      ${ots.length ? ots.map(o=>{
+        const c = conteos(o), t = tags[o.estado] || tags.en_terreno;
+        return `<div class="card blueprint" data-ot="${o.id}" style="cursor:pointer">${corners}
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <div style="flex:1;min-width:0">
+              <div class="card-kicker">${esc(o.codigo)}</div>
+              <div class="card-title">${esc(o.obra || 'Obra sin nombre')}</div>
+            </div>
+            <span class="tag ${t[1]}">${t[0]}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:11.5px;opacity:.75">
+            <span>${esc(o.mandante || 'Sin mandante')}</span>
+            <span>${esc(o.comuna || '—')}</span>
+            <span>Visita ${esc(fechaCorta(o.fechaVisita))}</span>
+            <span>${c.partidas} partidas · ${c.fotos} fotos</span>
+          </div>
+        </div>`;
+      }).join('') : `<div class="blueprint" style="padding:20px 14px;text-align:center">${corners}
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Sin visitas cargadas</div>
+          <div style="font-size:12.5px;opacity:.7">Crea la primera OT para salir a terreno.</div>
+        </div>`}
+    </div>
+    <button class="btn btn-primary btn-block blueprint" id="b-nueva-ot" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:15px">${corners}+ NUEVA OT</button>`;
+
+  $$('[data-ot]').forEach(c=> c.onclick = ()=>{
+    S.otId = c.dataset.ot; S.areaIdx = 0; S.rol='terreno';
+    $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol==='terreno'));
+    irA('terreno');
+  });
+  $('#b-nueva-ot').onclick = ()=>{
+    const ot = nuevaOT(); db.ots.push(ot); S.otId = ot.id; S.areaIdx = 0;
+    save(); irA('terreno'); toast(ot.codigo + ' creada.');
+  };
+}
+
+/* ═══════════ 2 · TERRENO ═══════════ */
+function vTerreno(){
+  const ot = getOT(); if(!ot){ irA('visitas'); return; }
+  const rec = getRecinto(ot); const c = conteos(ot);
+  $('#v-terreno').innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div class="kick">${esc(ot.codigo)} · Captura en terreno</div>
+        <h2 contenteditable="true" data-f="obra" data-ph="Nombre de la obra" style="font-size:24px;outline:none">${esc(ot.obra || 'Nombre de la obra')}</h2>
+        <div style="font-size:11.5px;opacity:.65">
+          <span contenteditable="true" data-f="comuna" data-ph="Comuna">${esc(ot.comuna || 'Comuna')}</span> ·
+          <span id="gps-txt">${ot.gps ? ot.gps.lat.toFixed(4)+', '+ot.gps.lon.toFixed(4) : 'sin GPS'}</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary" id="b-condiciones" style="font-size:12px">Condiciones ${checksActivos(ot)}/${CHECKLIST_BASE.length}</button>
+    </div>
+
+    <div class="recintos">
+      ${ot.recintos.map((r,i)=> `<button class="btn ${i===S.areaIdx?'btn-primary':'btn-secondary'}" data-rec="${i}">${esc(r.nombre)} · ${r.items.length}</button>`).join('')}
+      <button class="btn btn-ghost" id="b-mas-recinto">+ Recinto</button>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:17px">
+      ${rec.items.length ? rec.items.map(it=> itemHTML(ot,it)).join('')
+        : `<div class="blueprint" style="padding:20px 14px;text-align:center">${corners}
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Recinto sin partidas</div>
+            <div style="font-size:12.5px;opacity:.7">Agrega una partida del catálogo y toma sus medidas.</div>
+           </div>`}
+    </div>
+
+    <button class="btn btn-primary btn-block blueprint" id="b-agregar" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:15px">${corners}+ AGREGAR PARTIDA</button>
+    <button class="btn btn-secondary btn-block" id="b-informe" style="font-size:14px">Generar informe · ${c.partidas} partidas · ${c.fotos} fotos</button>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-secondary" id="b-gps" style="flex:1;font-size:12px">Registrar GPS</button>
+      <button class="btn btn-secondary" id="b-datos" style="flex:1;font-size:12px">Datos de la OT</button>
+    </div>`;
+
+  $$('[data-f]', $('#v-terreno')).forEach(el=>{
+    el.onfocus = ()=>{ if(el.textContent.trim() === el.dataset.ph) el.textContent = ''; };
+    el.onblur = ()=>{
+      const v = el.textContent.trim();
+      ot[el.dataset.f] = (v === el.dataset.ph) ? '' : v;
+      if(!ot[el.dataset.f]) el.textContent = el.dataset.ph;
+      save();
+    };
+  });
+  $$('[data-rec]').forEach(b=> b.onclick = ()=>{ S.areaIdx = +b.dataset.rec; render(); });
+  $('#b-mas-recinto').onclick = ()=>{
+    ot.recintos.push({id:uid(), nombre:'Recinto '+(ot.recintos.length+1), items:[]});
+    S.areaIdx = ot.recintos.length-1; save(); render();
+  };
+  $('#b-agregar').onclick = ()=> abrirSheet('catalogo');
+  $('#b-condiciones').onclick = ()=> abrirSheet('checklist');
+  $('#b-datos').onclick = ()=> abrirSheet('datos');
+  $('#b-informe').onclick = ()=> irA('informe');
+  $('#b-gps').onclick = ()=>{
+    if(!navigator.geolocation){ toast('Este equipo no entrega GPS.'); return; }
+    toast('Buscando señal GPS…');
+    navigator.geolocation.getCurrentPosition(p=>{
+      ot.gps = {lat:p.coords.latitude, lon:p.coords.longitude};
+      $('#gps-txt').textContent = ot.gps.lat.toFixed(4)+', '+ot.gps.lon.toFixed(4);
+      save(); toast('Coordenadas registradas.');
+    }, ()=> toast('No se pudo obtener la ubicación.'), {enableHighAccuracy:true, timeout:12000});
+  };
+  cablearItems(ot);
+  pintarFotos(ot);
+}
+
+function itemHTML(ot, it){
+  const dims = it.dims && it.dims.length ? it.dims : ['cantidad'];
+  return `<div class="card blueprint" data-item="${it.id}" style="padding:13px">${corners}
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div class="card-kicker">${esc(it.code)}</div>
+        <div class="card-title" style="font-size:16.5px">${esc(it.desc)}</div>
+      </div>
+      <div>
+        <div class="qty" data-qty>${qty(cantidadItem(ot,it))}</div>
+        <div class="qty-un">${esc(UNIDADES[it.unidad]||it.unidad)}</div>
+      </div>
+    </div>
+    <div class="dims">
+      ${dims.map(d=> `<label><span class="cap">${esc(DIM_LABELS[d]||d)}</span>
+        <input class="input" inputmode="decimal" data-med="${d}" value="${esc(it.med[d]??'')}"></label>`).join('')}
+    </div>
+    <div class="fotos" data-fotos="${it.id}"></div>
+    <input class="input" data-nota placeholder="Observación de terreno…" value="${esc(it.nota||'')}" style="font-size:12.5px">
+  </div>`;
+}
+
+function cablearItems(ot){
+  const rec = getRecinto(ot);
+  $$('[data-item]').forEach(card=>{
+    const it = rec.items.find(x=> x.id === card.dataset.item);
+    if(!it) return;
+    $$('[data-med]', card).forEach(inp=> inp.oninput = ()=>{
+      it.med[inp.dataset.med] = inp.value;
+      card.querySelector('[data-qty]').textContent = qty(cantidadItem(ot,it));
+      save();
+    });
+    const nota = $('[data-nota]', card);
+    if(nota) nota.oninput = ()=>{ it.nota = nota.value; save(); };
+  });
+}
+</script>
+
+<script>
+/* ═══════════ FOTOS ═══════════ */
+async function pintarFotos(ot){
+  for(const cont of $$('[data-fotos]')){
+    const itemId = cont.dataset.fotos;
+    const fotos = fotosDeItem(ot, itemId);
+    const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
+    cont.innerHTML = fotos.map((f,i)=> `<div class="foto">
+        ${recs[i] ? `<img src="${recs[i].thumb}" alt="${esc(f.label)}" data-ver="${f.id}">` : ''}
+        <span class="lbl">${esc(f.label)}</span>
+        <button class="del" data-delfoto="${f.id}" title="Eliminar">×</button>
+      </div>`).join('') +
+      `<label class="btn btn-secondary btn-foto" for="cam-${itemId}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        FOTO</label>
+      <input type="file" id="cam-${itemId}" accept="image/*" capture="environment" multiple hidden data-cam="${itemId}">
+      <button class="btn btn-ghost" data-quitar="${itemId}" style="margin-left:auto;font-size:12px">Quitar</button>`;
+
+    $$('[data-cam]', cont).forEach(inp=> inp.onchange = e=> agregarFotos(e.target.files, inp.dataset.cam));
+    $$('[data-delfoto]', cont).forEach(b=> b.onclick = async ()=>{
+      const id = b.dataset.delfoto;
+      await photoDel(id);
+      ot.fotos = ot.fotos.filter(f=> f.id !== id);
+      renumerarFotos(ot);
+      if(db.fotosSubidas[id]){ delete db.fotosSubidas[id]; api('fotos/'+id,{method:'DELETE'}).catch(()=>{}); }
+      save(); render();
+    });
+    $$('[data-quitar]', cont).forEach(b=> b.onclick = ()=>{
+      const rec = getRecinto(ot);
+      const it = rec.items.find(x=> x.id === b.dataset.quitar);
+      fotosDeItem(ot, it.id).forEach(f=> photoDel(f.id));
+      ot.fotos = ot.fotos.filter(f=> f.itemId !== it.id);
+      rec.items = rec.items.filter(x=> x.id !== it.id);
+      renumerarFotos(ot);
+      save(); render();
+    });
+    $$('[data-ver]', cont).forEach(img=> img.onclick = async ()=>{
+      const r = await photoGet(img.dataset.ver); if(!r) return;
+      const w = window.open('');
+      if(w) w.document.write(`<title>Foto</title><body style="margin:0;background:#1d1f20"><img src="${r.full}" style="max-width:100%;margin:auto;display:block"></body>`);
+    });
+  }
+}
+/** F# secuencial por levantamiento. */
+function renumerarFotos(ot){ (ot.fotos||[]).forEach((f,i)=> f.label = 'F'+(i+1)); }
+
+async function agregarFotos(files, itemId){
+  const ot = getOT(); if(!ot || !files || !files.length) return;
+  const rec = getRecinto(ot);
+  toast('Procesando ' + files.length + (files.length===1?' foto…':' fotos…'));
+  for(const file of Array.from(files)){
+    if(!file.type.startsWith('image/')) continue;
+    try{
+      const id = uid();
+      await photoPut(await fileToPhoto(file, id));
+      ot.fotos.push({id, itemId, recintoId: rec.id, label:'F'+(ot.fotos.length+1)});
+    }catch(e){ console.warn(e); }
+  }
+  renumerarFotos(ot);
+  save(); render();
+  toast('Foto anotada y asociada a la partida.');
+}
+
+/* ═══════════ 3 · INFORME ═══════════ */
+function vInforme(){
+  const ot = getOT(); if(!ot){ irA('visitas'); return; }
+  const c = conteos(ot);
+  let n = 1;
+  const secciones = ot.recintos.filter(r=> r.items.length).map(r=>{
+    n++;
+    return `<div class="sec"><span class="n">${String(n).padStart(2,'0')}</span><h3>${esc(r.nombre)}</h3><span class="rule"></span></div>
+      <table class="table"><thead><tr><th>Partida</th><th style="text-align:right">Cant.</th><th>Un</th></tr></thead>
+      <tbody>${r.items.map(it=>{
+        const det = (it.dims||[]).filter(d=> num(it.med[d])).map(d=> `${DIM_LABELS[d].replace(' m','')} ${qty(num(it.med[d]))}`).join(' × ');
+        const extra = [det, it.nota].filter(Boolean).join(' · ');
+        return `<tr><td>${esc(it.desc)}${extra?`<div style="font-size:10.5px;opacity:.6">${esc(extra)}</div>`:''}</td>
+          <td class="num">${qty(cantidadItem(ot,it))}</td><td style="font-size:11px">${esc(UNIDADES[it.unidad]||it.unidad)}</td></tr>`;
+      }).join('')}</tbody></table>
+      <div class="fotos" data-repfotos="${r.id}" style="margin-top:10px"></div>`;
+  }).join('');
+
+  $('#v-informe').innerHTML = `
+    <div class="blueprint" style="background:var(--color-surface);padding:14px">
+      <div class="kick">Informe de levantamiento técnico</div>
+      <h2 style="font-size:26px">${esc(ot.obra || 'Obra sin nombre')}</h2>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px">
+        <span style="opacity:.55">OT</span><span>${esc(ot.codigo)}</span>
+        <span style="opacity:.55">Mandante</span><span>${esc(ot.mandante||'—')}</span>
+        <span style="opacity:.55">Ubicación</span><span>${esc([ot.direccion, ot.comuna].filter(Boolean).join(' · ')||'—')}${ot.gps?' · '+ot.gps.lat.toFixed(4)+', '+ot.gps.lon.toFixed(4):''}</span>
+        <span style="opacity:.55">Visita</span><span>${esc(fechaCorta(ot.fechaVisita))}</span>
+        <span style="opacity:.55">Levantó</span><span>${esc(ot.levantoPor||'—')}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <span class="tag tag-accent">${c.partidas} partidas</span>
+        <span class="tag tag-neutral">${c.fotos} fotografías</span>
+        <span class="tag tag-outline">${c.recintos} recintos</span>
+      </div>
+    </div>
+
+    <div class="sec"><span class="n">01</span><h3>Condiciones del sitio</h3><span class="rule"></span></div>
+    ${CHECKLIST_BASE.map(ck=>{
+      const v = ot.checks[ck.key] || {on:false, valor:''};
+      return `<div class="chk"><span class="mk">${v.on?'✓':'—'}</span><span>${esc(ck.label)}</span>
+        <span class="val">${esc(v.on ? (v.valor || 'Sí') : 'No aplica')}</span></div>`;
+    }).join('')}
+
+    ${secciones || '<p class="sub" style="margin-top:16px">Aún no hay partidas levantadas.</p>'}
+
+    <button class="btn btn-primary btn-block blueprint" id="b-a-cotizar" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:18px">${corners}PASAR A COTIZACIÓN →</button>
+    <button class="btn btn-secondary btn-block" id="b-volver" style="font-size:13.5px">Volver a captura</button>`;
+
+  $('#b-a-cotizar').onclick = ()=>{
+    if(!ot.cot.numero){ ot.cot.numero = 'CT-' + (db.seqCT++) + '/' + String(new Date().getFullYear()).slice(2); save(); }
+    S.rol='oficina'; $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol==='oficina'));
+    irA('cotizacion');
+  };
+  $('#b-volver').onclick = ()=>{
+    S.rol='terreno'; $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol==='terreno'));
+    irA('terreno');
+  };
+  pintarFotosInforme(ot);
+}
+async function pintarFotosInforme(ot){
+  for(const cont of $$('[data-repfotos]')){
+    const fotos = (ot.fotos||[]).filter(f=> f.recintoId === cont.dataset.repfotos);
+    const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
+    const items = {}; todosItems(ot).forEach(({item})=> items[item.id] = item.code);
+    cont.innerHTML = fotos.map((f,i)=> `<figure style="width:88px">
+      ${recs[i] ? `<img src="${recs[i].thumb}" style="height:66px;width:88px;object-fit:cover;border:1px solid var(--color-divider)">` : ''}
+      <figcaption style="font-size:10.5px">${esc(f.label)} · ${esc(items[f.itemId]||'')}</figcaption></figure>`).join('');
+  }
+}
+
+/* ═══════════ 4 · COTIZACIÓN ═══════════ */
+function vCotizacion(){
+  const ot = getOT(); if(!ot){ irA('visitas'); return; }
+  if(!ot.cot.numero) ot.cot.numero = 'CT-' + (db.seqCT++) + '/' + String(new Date().getFullYear()).slice(2);
+  const r = calcular(ot);
+  const todas = todosItems(ot);
+
+  $('#v-cotizacion').innerHTML = `
+    <div class="kick">Cotización ${esc(ot.cot.numero)} · tarifa ${esc(db.params.tarifa)}</div>
+    <h2>${esc(ot.obra || 'Obra sin nombre')}</h2>
+    <p class="sub" style="font-size:12px">Cantidades traídas del levantamiento. Ajusta precio unitario o desmarca partidas.</p>
+
+    <div style="display:flex;flex-direction:column;gap:11px">
+      ${todas.length ? todas.map(({item, recinto})=>{
+        const inc = !ot.cot.excluidas[item.id];
+        const cant = cantidadItem(ot, item);
+        const pu = ot.cot.pu[item.id] !== undefined ? num(ot.cot.pu[item.id]) : num(item.pu);
+        return `<div class="card" style="padding:11px;${inc?'':'opacity:.42'}">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <button class="btn btn-secondary" data-inc="${item.id}" style="width:26px;height:26px;min-height:26px;padding:0;flex:none">${inc?'✓':''}</button>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:9.5px;text-transform:uppercase;opacity:.55;letter-spacing:.06em">${esc(recinto.nombre)} · ${esc(item.code)}</div>
+              <div class="card-title" style="font-size:15.5px">${esc(item.desc)}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <label style="display:flex;flex-direction:column;gap:3px"><span class="cap">Cant ${esc(UNIDADES[item.unidad]||item.unidad)}</span>
+              <input class="input" style="width:82px" inputmode="decimal" data-cant="${item.id}" value="${esc(qty(cant))}"></label>
+            <label style="display:flex;flex-direction:column;gap:3px"><span class="cap">P. unitario</span>
+              <input class="input" style="width:104px" inputmode="numeric" data-pu="${item.id}" value="${pu||''}"></label>
+            <div style="margin-left:auto;text-align:right">
+              <div class="cap">Total</div>
+              <div style="font-family:var(--font-heading);font-weight:600;font-size:16px" data-tot="${item.id}">${money(cant*pu)}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('') : '<p class="sub">No hay partidas levantadas todavía.</p>'}
+    </div>
+
+    <div class="resumen" style="margin-top:15px">
+      <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.75;margin-bottom:8px">Resumen económico</div>
+      <div class="row"><span>Neto partidas</span><span>${money(r.neto)}</span></div>
+      <div class="row"><span>Gastos generales ${Math.round(db.params.gg*100)}%</span><span>${money(r.gg)}</span></div>
+      <div class="row"><span>Utilidad ${Math.round(db.params.utilidad*100)}%</span><span>${money(r.utilidad)}</span></div>
+      <div class="row"><span>IVA ${Math.round(db.params.iva*100)}%</span><span>${money(r.iva)}</span></div>
+      <hr>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+        <span class="tot-l">Total con IVA</span><span class="tot-v">${money(r.total)}</span></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-secondary" id="b-ver-informe" style="flex:1">Ver informe</button>
+      <button class="btn btn-primary blueprint" id="b-enviar" style="flex:1">${corners}ENVIAR</button>
+    </div>
+    <button class="btn btn-secondary btn-block" id="b-pdf" style="font-size:13px">Descargar PDF combinado</button>
+    <button class="btn btn-secondary btn-block" id="b-xls" style="font-size:13px">Exportar Excel</button>`;
+
+  $$('[data-inc]').forEach(b=> b.onclick = ()=>{
+    if(ot.cot.excluidas[b.dataset.inc]) delete ot.cot.excluidas[b.dataset.inc];
+    else ot.cot.excluidas[b.dataset.inc] = true;
+    save(); render();
+  });
+  $$('[data-pu]').forEach(inp=> inp.oninput = ()=>{
+    inp.value = inp.value.replace(/[^\d]/g,'');
+    ot.cot.pu[inp.dataset.pu] = num(inp.value);
+    save(); refrescarTotales(ot);
+  });
+  $$('[data-cant]').forEach(inp=> inp.oninput = ()=>{
+    ot.cot.qty[inp.dataset.cant] = inp.value;
+    save(); refrescarTotales(ot);
+  });
+  $('#b-ver-informe').onclick = ()=> irA('informe');
+  $('#b-enviar').onclick = ()=> abrirSheet('enviar');
+  $('#b-pdf').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCombinado(ot), 60); };
+  $('#b-xls').onclick = ()=> exportarExcel(ot);
+}
+function refrescarTotales(ot){
+  const r = calcular(ot);
+  todosItems(ot).forEach(({item})=>{
+    const el = $(`[data-tot="${item.id}"]`);
+    if(!el) return;
+    const pu = ot.cot.pu[item.id] !== undefined ? num(ot.cot.pu[item.id]) : num(item.pu);
+    el.textContent = money(cantidadItem(ot,item) * pu);
+  });
+  const res = $('.resumen');
+  if(res){
+    const rows = $$('.row span:last-child', res);
+    if(rows[0]) rows[0].textContent = money(r.neto);
+    if(rows[1]) rows[1].textContent = money(r.gg);
+    if(rows[2]) rows[2].textContent = money(r.utilidad);
+    if(rows[3]) rows[3].textContent = money(r.iva);
+    const tv = $('.tot-v', res); if(tv) tv.textContent = money(r.total);
+  }
+}
+</script>
+
+<script>
+/* ═══════════ 5 · PANEL DE OFICINA ═══════════ */
+function vOficina(){
+  const tags = {en_terreno:['En terreno','tag-accent'], cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
+  const conMonto = db.ots.map(o=> ({o, r: calcular(o)}));
+  const enviadas = conMonto.filter(x=> x.o.estado !== 'en_terreno');
+  const aprobadas = conMonto.filter(x=> x.o.estado === 'aprobada');
+  const totalEnviado = enviadas.reduce((s,x)=> s + x.r.total, 0);
+  const cierre = enviadas.length ? Math.round(aprobadas.length / enviadas.length * 100) : 0;
+
+  $('#v-oficina').innerHTML = `
+    <h2 class="h2big">Oficina técnica</h2>
+    <p class="sub">Levantamientos del equipo, listos para cotizar y enviar.</p>
+    <div class="kpis">
+      <div class="kpi blueprint">${corners}<div class="l">Levantamientos</div><div class="v">${db.ots.length}</div><div class="s">en total</div></div>
+      <div class="kpi blueprint">${corners}<div class="l">Por cotizar</div><div class="v">${conMonto.filter(x=> x.o.estado==='en_terreno').length}</div><div class="s">aún en terreno</div></div>
+      <div class="kpi blueprint">${corners}<div class="l">Enviadas</div><div class="v" style="font-size:20px">${money(totalEnviado)}</div><div class="s">en ${enviadas.length} propuesta${enviadas.length===1?'':'s'}</div></div>
+      <div class="kpi blueprint">${corners}<div class="l">Tasa cierre</div><div class="v">${cierre}%</div><div class="s">${aprobadas.length} aprobada${aprobadas.length===1?'':'s'}</div></div>
+    </div>
+
+    <div class="sec"><span class="n">01</span><h3>Pipeline</h3><span class="rule"></span></div>
+    <table class="table"><thead><tr><th>OT / obra</th><th>Estado</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody>${conMonto.length ? conMonto.map(({o,r})=>{
+        const t = tags[o.estado] || tags.en_terreno;
+        return `<tr data-pipe="${o.id}" style="cursor:pointer">
+          <td><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">${esc(o.obra||'Obra sin nombre')}</div>
+              <div style="font-size:10.5px;opacity:.6">${esc(o.codigo)} · ${esc(o.mandante||'sin mandante')}</div></td>
+          <td><span class="tag ${t[1]}">${t[0]}</span></td>
+          <td class="num" style="font-size:14px">${r.total?money(r.total):'—'}</td></tr>`;
+      }).join('') : '<tr><td colspan="3" style="opacity:.6">Todavía no hay levantamientos.</td></tr>'}</tbody></table>
+
+    <div class="sec"><span class="n">02</span><h3>Ajustes</h3><span class="rule"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label><span class="cap">Gastos generales %</span><input class="input" inputmode="decimal" data-p="gg" value="${db.params.gg*100}"></label>
+      <label><span class="cap">Utilidad %</span><input class="input" inputmode="decimal" data-p="utilidad" value="${db.params.utilidad*100}"></label>
+      <label><span class="cap">IVA %</span><input class="input" inputmode="decimal" data-p="iva" value="${db.params.iva*100}"></label>
+      <label><span class="cap">Validez días</span><input class="input" inputmode="numeric" data-p="validezDias" value="${db.params.validezDias}"></label>
+    </div>
+    <label style="display:block;margin-top:10px"><span class="cap">Clave de la nube</span>
+      <input class="input" type="password" id="nube-clave" value="${esc(NUBE.clave)}" placeholder="Clave que entrega ALFEX"></label>
+    <button class="btn btn-secondary btn-block" id="b-sync" style="font-size:13px">Sincronizar ahora</button>
+    <button class="btn btn-secondary btn-block" id="b-catalogo-edit" style="font-size:13px">Catálogo de precios (${db.catalogo.length})</button>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-secondary" id="b-export" style="flex:1;font-size:12px">Exportar respaldo</button>
+      <button class="btn btn-secondary" id="b-import" style="flex:1;font-size:12px">Importar</button>
+      <input type="file" id="f-import" accept="application/json" hidden>
+    </div>`;
+
+  $$('[data-pipe]').forEach(tr=> tr.onclick = ()=>{
+    S.otId = tr.dataset.pipe; S.areaIdx = 0;
+    irA(getOT().estado === 'en_terreno' ? 'informe' : 'cotizacion');
+  });
+  $$('[data-p]').forEach(inp=> inp.oninput = ()=>{
+    const k = inp.dataset.p;
+    db.params[k] = (k === 'validezDias') ? num(inp.value) : num(inp.value)/100;
+    marcarAjustes();
+  });
+  $('#nube-clave').oninput = e=>{
+    NUBE.clave = e.target.value.trim();
+    try{ localStorage.setItem('alfex_clave', NUBE.clave); }catch(err){}
+    setNube(NUBE.clave ? 'pend' : 'sinclave');
+  };
+  $('#b-sync').onclick = ()=> sincronizar(true);
+  $('#b-catalogo-edit').onclick = ()=> abrirSheet('precios');
+  $('#b-export').onclick = exportarJSON;
+  $('#b-import').onclick = ()=> $('#f-import').click();
+  $('#f-import').onchange = e=>{ if(e.target.files[0]) importarJSON(e.target.files[0]); e.target.value=''; };
+}
+
+/* ═══════════ 6 · CLIENTE ═══════════ */
+function vCliente(){
+  const ot = getOT() || db.ots.find(o=> o.estado !== 'en_terreno') || db.ots[0];
+  if(!ot){ $('#v-cliente').innerHTML = '<h2>Propuesta</h2><p class="sub">Todavía no hay una propuesta enviada.</p>'; return; }
+  S.otId = ot.id;
+  const r = calcular(ot), c = conteos(ot);
+
+  $('#v-cliente').innerHTML = `
+    <div class="kick">Propuesta ${esc(ot.cot.numero||'—')} · ${esc(db.empresa.nombre)}</div>
+    <h2>${esc(ot.obra||'Obra sin nombre')}</h2>
+    <p class="sub" style="font-size:12px">${esc(ot.mandante||'—')} · ${esc([ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—')}</p>
+
+    <div class="blueprint" style="padding:14px">${corners}
+      <div class="cap">Documento combinado</div>
+      <div style="font-family:var(--font-heading);font-weight:600;font-size:19px;margin-bottom:8px">Informe técnico + cotización</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px">
+        <span style="opacity:.55">Partidas</span><span>${r.lineas.length} incluidas</span>
+        <span style="opacity:.55">Respaldo</span><span>${c.fotos} fotografías con medida</span>
+        <span style="opacity:.55">Validez</span><span>${db.params.validezDias} días · plazo ${ot.cot.plazoDias||db.params.plazoDias} días hábiles</span>
+        <span style="opacity:.55">Total</span><span style="font-family:var(--font-heading);font-weight:600;font-size:16px">${money(r.total)} <span style="font-size:11px;opacity:.6">IVA incl.</span></span>
+      </div>
+    </div>
+
+    <div class="sec"><span class="n">01</span><h3>Detalle</h3><span class="rule"></span></div>
+    ${r.lineas.map(l=> `<div style="display:flex;gap:10px;font-size:12.5px;padding:6px 0;border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent)">
+        <span style="flex:1">${esc(l.item.desc)} <span style="opacity:.55">· ${qty(l.cantidad)} ${esc(UNIDADES[l.item.unidad]||l.item.unidad)}</span></span>
+        <span style="font-family:var(--font-heading);font-weight:600;font-size:14px;white-space:nowrap">${money(l.total)}</span>
+      </div>`).join('')}
+
+    <button class="btn btn-secondary btn-block" id="b-pdf-cli" style="font-size:13px;margin-top:12px">Descargar el documento (PDF)</button>
+
+    ${ot.firma.firmado ? `
+      <div class="resumen" style="margin-top:15px">
+        <div class="cap" style="opacity:.75">Aprobada</div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">Firmada por ${esc(ot.firma.por||ot.mandante||'el mandante')}</div>
+        <div style="font-size:12px;opacity:.8">${esc(ot.firma.fecha)} · se genera OT de ejecución</div>
+        ${ot.firma.dataUrl ? `<img src="${ot.firma.dataUrl}" style="background:#fff;margin-top:10px;max-height:80px">` : ''}
+      </div>`
+    : `
+      <div class="sec"><span class="n">02</span><h3>Firma</h3><span class="rule"></span></div>
+      <div style="font-size:12px;opacity:.55;margin-bottom:6px">Firme aquí con el dedo</div>
+      <canvas id="firma-canvas"></canvas>
+      <button class="btn btn-ghost" id="b-limpiar-firma" style="font-size:12px;margin-top:4px">Borrar firma</button>
+      <button class="btn btn-primary btn-block blueprint" id="b-firmar" style="padding:12px;font-size:15px;letter-spacing:.05em">${corners}APROBAR Y FIRMAR</button>
+      <button class="btn btn-secondary btn-block" id="b-cambios" style="font-size:13px">Solicitar cambios</button>`}`;
+
+  $('#b-pdf-cli').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCombinado(ot), 60); };
+  if(!ot.firma.firmado){ montarFirma(ot); }
+}
+
+function montarFirma(ot){
+  const cv = $('#firma-canvas'); if(!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = cv.offsetWidth * dpr; cv.height = 120 * dpr;
+  const cx = cv.getContext('2d');
+  cx.scale(dpr, dpr); cx.strokeStyle = '#1d1f20'; cx.lineWidth = 2;
+  cx.lineCap = 'round'; cx.lineJoin = 'round';
+  let dibujando = false, vacio = true;
+  const pos = e=>{
+    const r = cv.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return {x: p.clientX - r.left, y: p.clientY - r.top};
+  };
+  const ini = e=>{ dibujando = true; vacio = false; const {x,y} = pos(e); cx.beginPath(); cx.moveTo(x,y); e.preventDefault(); };
+  const mov = e=>{ if(!dibujando) return; const {x,y} = pos(e); cx.lineTo(x,y); cx.stroke(); e.preventDefault(); };
+  const fin = ()=>{ dibujando = false; };
+  cv.addEventListener('pointerdown', ini); cv.addEventListener('pointermove', mov);
+  window.addEventListener('pointerup', fin);
+  $('#b-limpiar-firma').onclick = ()=>{ cx.clearRect(0,0,cv.width,cv.height); vacio = true; };
+  $('#b-firmar').onclick = ()=>{
+    if(vacio){ toast('Dibuje la firma antes de aprobar.'); return; }
+    ot.firma = {firmado:true, por: ot.mandante || 'el mandante',
+      fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+      dataUrl: cv.toDataURL('image/png')};
+    ot.estado = 'aprobada';
+    save(); render();
+    toast('Cotización aprobada. Se abre OT de ejecución.');
+  };
+  $('#b-cambios').onclick = ()=> toast('Observación enviada a la oficina técnica.');
+}
+</script>
+
+<script>
+/* ═══════════ SHEETS ═══════════ */
+function abrirSheet(tipo){ S.sheet = tipo; pintarSheet(); $('#overlay').classList.add('on'); }
+function cerrarSheet(){ const habia = S.sheet; S.sheet = null; $('#overlay').classList.remove('on'); if(habia) render(); }
+
+function pintarSheet(){
+  const ot = getOT(); const s = $('#sheet');
+  const cab = (titulo, bajada)=> `<div class="sheet-h"><h3>${titulo}</h3>
+      <button class="btn btn-ghost" id="b-cerrar-sheet" style="font-size:13px">Cerrar</button></div>
+    <p class="sub" style="font-size:12px">${bajada}</p>`;
+
+  if(S.sheet === 'catalogo'){
+    const rec = getRecinto(ot);
+    s.innerHTML = cab('Catálogo de partidas', `Se agrega a <strong>${esc(rec.nombre)}</strong> con precio unitario base.`) +
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${db.catalogo.map(c=> `<button class="card" data-cat="${c.id}" style="cursor:pointer;text-align:left;flex-direction:row;align-items:center;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div class="card-kicker">${esc(c.code)} · ${esc(c.familia)}</div>
+            <div class="card-title" style="font-size:15.5px">${esc(c.desc)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:14px">${money(c.pu)}</div>
+            <div class="cap">por ${esc(UNIDADES[c.unidad]||c.unidad)}</div>
+          </div></button>`).join('')}
+      </div>`;
+    $$('[data-cat]').forEach(b=> b.onclick = ()=>{
+      const c = db.catalogo.find(x=> x.id === b.dataset.cat);
+      const med = {}; (c.dims||[]).forEach(d=> med[d] = (d === 'cantidad') ? 1 : '');
+      rec.items.push({id:uid(), code:c.code, familia:c.familia, desc:c.desc,
+                      unidad:c.unidad, pu:c.pu, dims:(c.dims||[]).slice(), med, nota:''});
+      save(); cerrarSheet(); render();
+    });
+  }
+
+  if(S.sheet === 'checklist'){
+    s.innerHTML = cab('Condiciones del sitio', 'Marca lo que aplica; entra en el informe.') +
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${CHECKLIST_BASE.map(ck=>{
+          const v = ot.checks[ck.key] || {on:false, valor:''};
+          return `<div class="card" style="flex-direction:row;align-items:center;gap:10px;padding:10px">
+            <button class="btn btn-secondary" data-chk="${ck.key}" style="width:24px;height:24px;min-height:24px;padding:0;flex:none">${v.on?'✓':'—'}</button>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13.5px">${esc(ck.label)}</div>
+              <input class="input" data-chkval="${ck.key}" value="${esc(v.valor)}" placeholder="Detalle…" style="font-size:11.5px;min-height:34px;margin-top:4px">
+            </div></div>`;
+        }).join('')}
+      </div>`;
+    $$('[data-chk]').forEach(b=> b.onclick = ()=>{
+      const k = b.dataset.chk;
+      ot.checks[k] = ot.checks[k] || {on:false, valor:''};
+      ot.checks[k].on = !ot.checks[k].on;
+      save(); pintarSheet();
+    });
+    $$('[data-chkval]').forEach(inp=> inp.oninput = ()=>{
+      const k = inp.dataset.chkval;
+      ot.checks[k] = ot.checks[k] || {on:false, valor:''};
+      ot.checks[k].valor = inp.value; save();
+    });
+  }
+
+  if(S.sheet === 'datos'){
+    s.innerHTML = cab('Datos de la OT', 'Antecedentes que encabezan el informe y la cotización.') +
+      `<div style="display:flex;flex-direction:column;gap:10px">
+        ${[['obra','Obra'],['mandante','Mandante'],['email','Email del mandante'],['direccion','Dirección'],
+           ['comuna','Comuna'],['levantoPor','Levantó (nombre · cargo)'],['fechaVisita','Fecha de visita']].map(([k,l])=>
+          `<label><span class="cap">${l}</span><input class="input" data-ot="${k}" ${k==='fechaVisita'?'type="date"':''} value="${esc(ot[k]||'')}"></label>`).join('')}
+      </div>`;
+    $$('[data-ot]').forEach(inp=> inp.oninput = ()=>{ ot[inp.dataset.ot] = inp.value; save(); });
+  }
+
+  if(S.sheet === 'precios'){
+    s.innerHTML = cab('Catálogo de precios', `Tarifa ${esc(db.params.tarifa)}. Los valores son de ejemplo: reemplázalos por la lista real de ALFEX.`) +
+      `<div style="display:flex;flex-direction:column;gap:8px">
+        ${db.catalogo.map(c=> `<div class="card" style="flex-direction:row;align-items:center;gap:10px;padding:10px">
+          <div style="flex:1;min-width:0">
+            <div class="card-kicker">${esc(c.code)} · ${esc(c.familia)}</div>
+            <div style="font-size:13px">${esc(c.desc)}</div>
+          </div>
+          <label style="text-align:right"><span class="cap">$ por ${esc(UNIDADES[c.unidad]||c.unidad)}</span>
+            <input class="input" style="width:100px;text-align:right" inputmode="numeric" data-precio="${c.id}" value="${c.pu}"></label>
+        </div>`).join('')}
+      </div>`;
+    $$('[data-precio]').forEach(inp=> inp.oninput = ()=>{
+      const c = db.catalogo.find(x=> x.id === inp.dataset.precio);
+      c.pu = num(inp.value.replace(/[^\d]/g,''));
+      marcarAjustes();
+    });
+  }
+
+  if(S.sheet === 'enviar'){
+    const r = calcular(ot);
+    s.innerHTML = cab('Enviar al mandante', 'Un solo PDF: informe técnico y cotización.') +
+      `<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px">
+        <span style="opacity:.55">Para</span><span>${esc(ot.mandante||'—')}${ot.email?' · '+esc(ot.email):''}</span>
+        <span style="opacity:.55">Adjunto</span><span>Informe + cotización ${esc(ot.cot.numero||'')} (1 PDF)</span>
+        <span style="opacity:.55">Monto</span><span style="font-family:var(--font-heading);font-weight:600;font-size:15px">${money(r.total)} IVA incl.</span>
+      </div>
+      <button class="btn btn-primary btn-block blueprint" id="b-enviar-ok" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:14px">${corners}ENVIAR PARA APROBACIÓN</button>`;
+    $('#b-enviar-ok').onclick = ()=>{
+      if(ot.estado === 'en_terreno') ot.estado = 'cotizado';
+      save(); cerrarSheet();
+      pdfCombinado(ot);
+      S.rol = 'cliente';
+      $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol === 'cliente'));
+      irA('cliente');
+      toast('Enviado. El mandante recibe el PDF para firmar.');
+    };
+  }
+
+  const cerrar = $('#b-cerrar-sheet'); if(cerrar) cerrar.onclick = cerrarSheet;
+}
+
+/* ═══════════ PDF COMBINADO (informe + cotización) ═══════════ */
+async function pdfCombinado(ot){
+  if(!window.jspdf){ toast('Necesitas conexión para generar el PDF.'); return; }
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const M = 16, R = 194;
+  const e = db.empresa, r = calcular(ot), c = conteos(ot);
+  const naranjo = [226,101,28], grafito = [62,63,66], tinta = [29,31,32];
+  let y = 0;
+
+  const encabezado = (titulo)=>{
+    doc.setFillColor(...naranjo); doc.rect(M, 14, 7, 7, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...tinta);
+    doc.text('ALFEX', M+10, 20);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,120,124);
+    doc.text([e.web, e.email, e.fono].filter(Boolean).join(' · '), R, 17, {align:'right'});
+    doc.text(e.rubro || 'Obras civiles', R, 20.5, {align:'right'});
+    doc.setDrawColor(...naranjo); doc.setLineWidth(0.8); doc.line(M, 24, R, 24);
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...tinta);
+    doc.text(titulo, M, 32);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(120,120,124);
+    doc.text(`${ot.codigo}${ot.cot.numero?' · '+ot.cot.numero:''} · ${fechaCorta(ot.fechaVisita)}`, R, 32, {align:'right'});
+    return 40;
+  };
+  const seccion = (n, t, yy)=>{
+    if(yy > 265){ doc.addPage(); yy = 20; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(...naranjo);
+    doc.text(n, M, yy);
+    doc.setFontSize(11); doc.setTextColor(...tinta); doc.text(t, M+9, yy);
+    doc.setDrawColor(210,210,213); doc.setLineWidth(0.2); doc.line(M+9+doc.getTextWidth(t)+4, yy-1, R, yy-1);
+    return yy + 6;
+  };
+
+  /* — Portada / antecedentes — */
+  y = encabezado('INFORME DE LEVANTAMIENTO TÉCNICO');
+  doc.setFont('helvetica','bold'); doc.setFontSize(17); doc.setTextColor(...tinta);
+  doc.text(doc.splitTextToSize(ot.obra || 'Obra sin nombre', R-M), M, y);
+  y += 9 + (doc.splitTextToSize(ot.obra||'x', R-M).length-1)*7;
+  doc.autoTable({
+    startY: y, theme:'plain', styles:{fontSize:9, cellPadding:1.3, textColor:[45,47,50]},
+    columnStyles:{0:{cellWidth:32, textColor:[130,130,134]}, 2:{cellWidth:28, textColor:[130,130,134]}},
+    body:[
+      ['OT', ot.codigo, 'Visita', fechaCorta(ot.fechaVisita)],
+      ['Mandante', ot.mandante||'—', 'Levantó', ot.levantoPor||'—'],
+      ['Ubicación', [ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—',
+       'Coordenadas', ot.gps ? `${ot.gps.lat.toFixed(4)}, ${ot.gps.lon.toFixed(4)}` : '—'],
+      ['Partidas', String(c.partidas), 'Registro', `${c.fotos} fotografías · ${c.recintos} recintos`]
+    ]
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  /* — 01 Condiciones — */
+  y = seccion('01', 'Condiciones del sitio', y);
+  doc.autoTable({
+    startY: y, theme:'plain', styles:{fontSize:8.5, cellPadding:1.2, textColor:[45,47,50]},
+    columnStyles:{0:{cellWidth:10, fontStyle:'bold'}, 2:{halign:'right', textColor:[130,130,134]}},
+    body: CHECKLIST_BASE.map(ck=>{
+      const v = ot.checks[ck.key] || {on:false, valor:''};
+      return [{content: v.on?'SÍ':'NO', styles:{textColor: v.on ? naranjo : [165,165,169]}},
+              ck.label, v.on ? (v.valor||'Sí') : 'No aplica'];
+    })
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  /* — 02..N Recintos — */
+  let n = 1;
+  for(const rec of ot.recintos.filter(x=> x.items.length)){
+    n++;
+    y = seccion(String(n).padStart(2,'0'), rec.nombre, y);
+    doc.autoTable({
+      startY: y, head:[['Partida', 'Cant.', 'Un']],
+      body: rec.items.map(it=>{
+        const det = (it.dims||[]).filter(d=> num(it.med[d])).map(d=> `${DIM_LABELS[d].replace(' m','')} ${qty(num(it.med[d]))}`).join(' x ');
+        const extra = [det, it.nota].filter(Boolean).join(' · ');
+        return [it.desc + (extra ? '\n' + extra : ''), qty(cantidadItem(ot,it)), UNIDADES[it.unidad]||it.unidad];
+      }),
+      theme:'grid', rowPageBreak:'avoid',
+      headStyles:{fillColor:grafito, textColor:[242,242,243], fontSize:8.5},
+      styles:{fontSize:8.5, cellPadding:2, textColor:[45,47,50]},
+      columnStyles:{1:{cellWidth:22, halign:'right'}, 2:{cellWidth:14, halign:'center'}}
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
+  /* — Anexo fotográfico — */
+  const fotos = ot.fotos || [];
+  if(fotos.length){
+    doc.addPage(); y = seccion(String(++n).padStart(2,'0'), 'Registro fotográfico', 20);
+    const codes = {}; todosItems(ot).forEach(({item})=> codes[item.id] = item.code);
+    const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
+    const colW = 56, gap = 5, maxH = 42;
+    let col = 0, top = y;
+    for(let i=0;i<fotos.length;i++){
+      const rec = recs[i]; if(!rec) continue;
+      let w = colW, h = w * (rec.h/rec.w);
+      if(h > maxH){ h = maxH; w = h * (rec.w/rec.h); }
+      const x = M + col*(colW+gap);
+      if(col === 0 && top + maxH + 12 > 280){ doc.addPage(); top = 20; }
+      try{ doc.addImage(rec.full, 'JPEG', x, top, w, h); }catch(err){}
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,124);
+      doc.text(`${fotos[i].label} · ${codes[fotos[i].itemId]||''}`, x, top + maxH + 3.5);
+      col++;
+      if(col === 3){ col = 0; top += maxH + 9; }
+    }
+  }
+
+  /* — Cotización — */
+  doc.addPage();
+  y = encabezado('COTIZACIÓN');
+  doc.autoTable({
+    startY: y, theme:'plain', styles:{fontSize:9, cellPadding:1.3, textColor:[45,47,50]},
+    columnStyles:{0:{cellWidth:32, textColor:[130,130,134]}, 2:{cellWidth:28, textColor:[130,130,134]}},
+    body:[
+      ['Mandante', ot.mandante||'—', 'Cotización', ot.cot.numero||'—'],
+      ['Obra', ot.obra||'—', 'Validez', db.params.validezDias + ' días'],
+      ['Ubicación', [ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—',
+       'Plazo', (ot.cot.plazoDias||db.params.plazoDias) + ' días hábiles']
+    ]
+  });
+  y = doc.lastAutoTable.finalY + 6;
+  doc.autoTable({
+    startY: y, head:[['Cód.','Recinto','Partida','Un.','Cant.','P. unit.','Total']],
+    body: r.lineas.map(l=> [l.item.code, l.recinto.nombre, l.item.desc,
+      UNIDADES[l.item.unidad]||l.item.unidad, qty(l.cantidad), money(l.pu), money(l.total)]),
+    theme:'grid', rowPageBreak:'avoid',
+    headStyles:{fillColor:grafito, textColor:[242,242,243], fontSize:8.5},
+    styles:{fontSize:8, cellPadding:1.8, textColor:[45,47,50]},
+    columnStyles:{0:{cellWidth:15}, 1:{cellWidth:24}, 3:{cellWidth:11, halign:'center'},
+                  4:{cellWidth:17, halign:'right'}, 5:{cellWidth:22, halign:'right'}, 6:{cellWidth:24, halign:'right'}}
+  });
+  y = doc.lastAutoTable.finalY + 6;
+  if(y > 235){ doc.addPage(); y = 20; }
+
+  doc.setFillColor(...grafito); doc.rect(110, y, R-110, 42, 'F');
+  doc.setTextColor(242,242,243); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  const filas = [['Neto partidas', money(r.neto)],
+                 [`Gastos generales ${Math.round(db.params.gg*100)}%`, money(r.gg)],
+                 [`Utilidad ${Math.round(db.params.utilidad*100)}%`, money(r.utilidad)],
+                 [`IVA ${Math.round(db.params.iva*100)}%`, money(r.iva)]];
+  filas.forEach((f,i)=>{
+    doc.text(f[0], 114, y + 7 + i*5);
+    doc.text(f[1], R-4, y + 7 + i*5, {align:'right'});
+  });
+  doc.setDrawColor(150,150,154); doc.setLineWidth(0.2); doc.line(114, y+29, R-4, y+29);
+  doc.setFontSize(7.5); doc.text('TOTAL CON IVA', 114, y+36);
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text(money(r.total), R-4, y+37, {align:'right'});
+  y += 50;
+
+  if(ot.cot.notas){
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(70,72,76);
+    doc.splitTextToSize(ot.cot.notas, R-M).forEach(l=>{ doc.text(l, M, y); y += 4.4; });
+    y += 4;
+  }
+  if(ot.firma.firmado){
+    if(y > 250){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...tinta);
+    doc.text('Aprobada por ' + (ot.firma.por||''), M, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,124);
+    doc.text(ot.firma.fecha||'', M, y+4);
+    if(ot.firma.dataUrl){ try{ doc.addImage(ot.firma.dataUrl, 'PNG', M, y+6, 45, 16); }catch(err){} }
+  }
+
+  const tot = doc.internal.getNumberOfPages();
+  for(let i=1;i<=tot;i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,154);
+    doc.text(`${e.nombre} · ${e.web}`, M, 289);
+    doc.text(`Página ${i} de ${tot}`, R, 289, {align:'right'});
+  }
+  doc.save(`${ot.codigo}_${(ot.obra||'obra').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_').slice(0,40)}.pdf`);
+}
+
+/* ═══════════ EXCEL ═══════════ */
+function exportarExcel(ot){
+  if(!window.XLSX){ toast('Necesitas conexión para exportar el Excel.'); return; }
+  const r = calcular(ot);
+  const wb = XLSX.utils.book_new();
+  const cub = [['Recinto','Código','Partida','Unidad','Largo','Ancho','Alto','Cant. dim','Cantidad','Fotos']];
+  todosItems(ot).forEach(({item, recinto})=> cub.push([recinto.nombre, item.code, item.desc,
+    UNIDADES[item.unidad]||item.unidad, num(item.med.largo), num(item.med.ancho), num(item.med.alto),
+    num(item.med.cantidad), +cantidadItem(ot,item).toFixed(3), fotosDeItem(ot,item.id).length]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cub), 'Levantamiento');
+
+  const cot = [['Código','Recinto','Partida','Unidad','Cantidad','P. Unitario','Total']];
+  r.lineas.forEach(l=> cot.push([l.item.code, l.recinto.nombre, l.item.desc,
+    UNIDADES[l.item.unidad]||l.item.unidad, +l.cantidad.toFixed(3), l.pu, Math.round(l.total)]));
+  cot.push([], ['','','','','','Neto partidas', Math.round(r.neto)],
+    ['','','','','',`Gastos generales ${Math.round(db.params.gg*100)}%`, Math.round(r.gg)],
+    ['','','','','',`Utilidad ${Math.round(db.params.utilidad*100)}%`, Math.round(r.utilidad)],
+    ['','','','','',`IVA ${Math.round(db.params.iva*100)}%`, Math.round(r.iva)],
+    ['','','','','','TOTAL CON IVA', Math.round(r.total)]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cot), 'Cotización');
+  XLSX.writeFile(wb, `${ot.codigo}_cotizacion.xlsx`);
+}
+
+/* ═══════════ RESPALDO ═══════════ */
+async function exportarJSON(){
+  const fotos = {};
+  for(const ot of db.ots) for(const f of (ot.fotos||[])){
+    const rec = await photoGet(f.id); if(rec) fotos[f.id] = rec;
+  }
+  const blob = new Blob([JSON.stringify({v:2, db, fotos}, null, 1)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `respaldo_alfex_${hoyISO()}.json`; a.click();
+  setTimeout(()=> URL.revokeObjectURL(a.href), 4000);
+  toast('Respaldo descargado.');
+}
+async function importarJSON(file){
+  try{
+    const data = JSON.parse(await file.text());
+    if(!data.db || !Array.isArray(data.db.ots)) throw new Error('formato');
+    if(!confirm(`El respaldo tiene ${data.db.ots.length} OT. ¿Reemplazar los datos de este equipo?`)) return;
+    db = data.db;
+    db.params  = Object.assign({}, PARAMS_BASE, db.params||{});
+    db.empresa = Object.assign({}, EMPRESA_BASE, db.empresa||{});
+    db.borrados = []; db.fotosSubidas = {};
+    db.ots.forEach(o=> o.dirty = true);
+    for(const rec of Object.values(data.fotos||{})) await photoPut(rec);
+    S.otId = null; saveLocal(); programarSync(); render();
+    toast('Respaldo importado.');
+  }catch(e){ alert('No se pudo leer el archivo de respaldo.'); }
+}
+
+/* ═══════════ ARRANQUE ═══════════ */
+$$('nav.roles button').forEach(b=> b.onclick = ()=> setRol(b.dataset.rol));
+$('#overlay-tap').onclick = cerrarSheet;
+$('#netchip').onclick = ()=>{
+  if(!NUBE.clave){ setRol('oficina'); toast('Ingresa la clave de la nube en Oficina.'); return; }
+  sincronizar(true);
+};
+window.addEventListener('online', ()=> sincronizar());
+window.addEventListener('offline', ()=> setNube('sinred'));
+
+loadDB();
+render();
+setNube(!NUBE.disponible ? 'local' : 'sync');
+(async function detectarNube(){
+  if(!NUBE.disponible){ setNube('local'); return; }
+  try{
+    const r = await fetch('/api/estado', {headers:{'x-alfex-clave': NUBE.clave || 'sin-clave'}});
+    if(!(r.headers.get('content-type')||'').includes('json')){ NUBE.hayApi = false; setNube('sinnube'); return; }
+    NUBE.hayApi = true;
+    if(NUBE.clave) sincronizar(); else setNube('sinclave');
+  }catch(e){ setNube('sinred'); }
+})();
+</script>
+</body>
+</html>
