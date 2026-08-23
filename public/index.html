@@ -140,6 +140,10 @@ h2{font-size:26px;} .h2big{font-size:29px;}
 .recintos{display:flex;gap:7px;padding:2px 0 12px;overflow-x:auto;scrollbar-width:none;}
 .recintos::-webkit-scrollbar{height:0;}
 .recintos .btn{flex:none;font-size:12.5px;white-space:nowrap;min-height:38px;}
+.recinto-chip{display:inline-flex;flex:none;}
+.recinto-chip .btn:first-child{border-right:none;}
+.recinto-chip .del-rec{flex:none;min-height:38px;min-width:30px;padding:0 8px;color:var(--color-accent-700);border:1px solid var(--color-divider);font-size:16px;}
+.recinto-chip .del-rec:hover{background:var(--color-accent-100);}
 
 /* Partida en terreno */
 .dims{display:flex;flex-wrap:wrap;gap:8px;}
@@ -195,6 +199,25 @@ h2{font-size:26px;} .h2big{font-size:29px;}
 .toast i{width:7px;height:7px;background:var(--color-accent-300);flex:none;}
 .hide{display:none !important;}
 @media print{header.top,nav.roles,.no-print{display:none !important;}#app{max-width:none;border:0;}}
+
+/* ═══ Escritorio: el mismo sitio, aprovechando el ancho ═══ */
+@media (min-width:860px){
+  body{background:var(--color-neutral-200);}
+  #app{max-width:1040px;border-left:1px solid var(--color-divider);border-right:1px solid var(--color-divider);
+    min-height:100vh;box-shadow:0 0 0 1px var(--color-divider);}
+  header.top{padding:16px 24px 14px;}
+  main{padding:22px 28px 40px;}
+  nav.roles button{min-height:46px;font-size:11.5px;cursor:pointer;}
+  .recintos{flex-wrap:wrap;overflow-x:visible;}
+  .kpis{grid-template-columns:repeat(4,1fr);}
+  .list-grid{display:grid !important;grid-template-columns:1fr 1fr;gap:14px !important;align-items:start;}
+  .resumen{max-width:420px;margin-left:auto;}
+  .overlay{align-items:center;justify-content:center;background:color-mix(in srgb, var(--color-neutral-900) 45%, transparent);}
+  .overlay .tapzone{flex:none;width:100%;height:100%;position:absolute;inset:0;}
+  .sheet{position:relative;width:min(560px,92vw);max-height:80vh;border:1px solid var(--color-divider);
+    box-shadow:0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);}
+  .toast{left:50%;right:auto;transform:translateX(-50%);width:min(420px,90%);}
+}
 </style>
 </head>
 <body>
@@ -214,6 +237,7 @@ h2{font-size:26px;} .h2big{font-size:29px;}
     <button data-rol="terreno" class="on">Terreno</button>
     <button data-rol="oficina">Oficina</button>
     <button data-rol="cliente">Cliente</button>
+    <button data-rol="tutorial">Tutorial</button>
   </nav>
 
   <main id="main">
@@ -223,6 +247,7 @@ h2{font-size:26px;} .h2big{font-size:29px;}
     <section class="view" id="v-cotizacion"></section>
     <section class="view" id="v-oficina"></section>
     <section class="view" id="v-cliente"></section>
+    <section class="view" id="v-tutorial"></section>
   </main>
 
   <div class="overlay" id="overlay">
@@ -603,7 +628,7 @@ async function sincronizar(manual=false){
 }
 
 /* ═══════════ NAVEGACIÓN ═══════════ */
-const VISTA_POR_ROL = {terreno:'visitas', oficina:'oficina', cliente:'cliente'};
+const VISTA_POR_ROL = {terreno:'visitas', oficina:'oficina', cliente:'cliente', tutorial:'tutorial'};
 function irA(view){ S.view = view; cerrarSheet(); render(); $('#main').scrollTop = 0; }
 function setRol(rol){
   S.rol = rol;
@@ -613,7 +638,7 @@ function setRol(rol){
 function render(){
   $$('.view').forEach(v=> v.classList.toggle('on', v.id === 'v-'+S.view));
   const f = {visitas:vVisitas, terreno:vTerreno, informe:vInforme,
-             cotizacion:vCotizacion, oficina:vOficina, cliente:vCliente}[S.view];
+             cotizacion:vCotizacion, oficina:vOficina, cliente:vCliente, tutorial:vTutorial}[S.view];
   if(f) f();
 }
 
@@ -625,7 +650,7 @@ function vVisitas(){
     <div class="h2row"><h2 class="h2big" style="margin:0">Visitas</h2>
       <span style="font-size:11.5px;opacity:.6">${esc(fechaLarga(hoyISO()))}</span></div>
     <p class="sub">Toca una OT para capturar fotos y medidas en terreno.</p>
-    <div style="display:flex;flex-direction:column;gap:15px">
+    <div class="list-grid" style="display:flex;flex-direction:column;gap:15px">
       ${ots.length ? ots.map(o=>{
         const c = conteos(o), t = tags[o.estado] || tags.en_terreno;
         return `<div class="card blueprint" data-ot="${o.id}" style="cursor:pointer">${corners}
@@ -679,11 +704,14 @@ function vTerreno(){
     </div>
 
     <div class="recintos">
-      ${ot.recintos.map((r,i)=> `<button class="btn ${i===S.areaIdx?'btn-primary':'btn-secondary'}" data-rec="${i}">${esc(r.nombre)} · ${r.items.length}</button>`).join('')}
+      ${ot.recintos.map((r,i)=> `<span class="recinto-chip">
+          <button class="btn ${i===S.areaIdx?'btn-primary':'btn-secondary'}" data-rec="${i}">${esc(r.nombre)} · ${r.items.length}</button>
+          ${ot.recintos.length>1 ? `<button class="btn btn-ghost del-rec" data-delrec="${i}" title="Eliminar recinto">×</button>` : ''}
+        </span>`).join('')}
       <button class="btn btn-ghost" id="b-mas-recinto">+ Recinto</button>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:17px">
+    <div class="list-grid" style="display:flex;flex-direction:column;gap:17px">
       ${rec.items.length ? rec.items.map(it=> itemHTML(ot,it)).join('')
         : `<div class="blueprint" style="padding:20px 14px;text-align:center">${corners}
             <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Recinto sin partidas</div>
@@ -712,6 +740,19 @@ function vTerreno(){
     ot.recintos.push({id:uid(), nombre:'Recinto '+(ot.recintos.length+1), items:[]});
     S.areaIdx = ot.recintos.length-1; save(); render();
   };
+  $$('[data-delrec]').forEach(b=> b.onclick = ()=>{
+    const i = +b.dataset.delrec;
+    const r = ot.recintos[i];
+    const np = r.items.length, nf = (ot.fotos||[]).filter(f=> f.recintoId === r.id).length;
+    const aviso = np || nf ? ` Se eliminan ${np} partida${np===1?'':'s'} y ${nf} foto${nf===1?'':'s'}.` : '';
+    if(!confirm(`¿Eliminar "${r.nombre}"?${aviso}`)) return;
+    r.items.forEach(it=> fotosDeItem(ot, it.id).forEach(f=> photoDel(f.id)));
+    ot.fotos = (ot.fotos||[]).filter(f=> f.recintoId !== r.id);
+    ot.recintos.splice(i,1);
+    if(S.areaIdx >= ot.recintos.length) S.areaIdx = ot.recintos.length-1;
+    renumerarFotos(ot);
+    save(); render();
+  });
   $('#b-agregar').onclick = ()=> abrirSheet('catalogo');
   $('#b-condiciones').onclick = ()=> abrirSheet('checklist');
   $('#b-datos').onclick = ()=> abrirSheet('datos');
@@ -912,7 +953,7 @@ function vCotizacion(){
     <h2>${esc(ot.obra || 'Obra sin nombre')}</h2>
     <p class="sub" style="font-size:12px">Cantidades traídas del levantamiento. Ajusta precio unitario o desmarca partidas.</p>
 
-    <div style="display:flex;flex-direction:column;gap:11px">
+    <div class="list-grid" style="display:flex;flex-direction:column;gap:11px">
       ${todas.length ? todas.map(({item, recinto})=>{
         const inc = !ot.cot.excluidas[item.id];
         const cant = cantidadItem(ot, item);
@@ -1144,6 +1185,73 @@ function montarFirma(ot){
     toast('Cotización aprobada. Se abre OT de ejecución.');
   };
   $('#b-cambios').onclick = ()=> toast('Observación enviada a la oficina técnica.');
+}
+
+/* ═══════════ TUTORIAL ═══════════ */
+function vTutorial(){
+  const paso = (n, t, cuerpo)=> `<div class="sec"><span class="n">${n}</span><h3>${t}</h3><span class="rule"></span></div>${cuerpo}`;
+  $('#v-tutorial').innerHTML = `
+    <h2 class="h2big">Cómo se usa la app</h2>
+    <p class="sub">El flujo completo: terreno → informe → cotización → firma del mandante. Cuatro pasos, tres personas.</p>
+
+    <div class="blueprint" style="padding:14px;margin-bottom:6px">${corners}
+      <div class="card-title" style="font-size:16.5px;margin-bottom:6px">Los tres roles</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+        <div><span class="tag tag-accent">Terreno</span> Solo capturar: se elige la OT, se agregan partidas del catálogo, se miden y se sacan fotos. No calcula precios.</div>
+        <div><span class="tag tag-neutral">Oficina</span> Revisa el levantamiento, ajusta precios y cantidades, y envía la cotización al mandante.</div>
+        <div><span class="tag tag-outline">Cliente</span> Ve el documento combinado y lo firma con el dedo. Es lo que ve el mandante, no el equipo de ALFEX.</div>
+      </div>
+    </div>
+
+    ${paso('01','En terreno', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">1. En <strong>Visitas</strong>, toca <strong>+ Nueva OT</strong> o abre una ya creada.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">2. Toca <strong>Datos de la OT</strong> y llena obra, mandante, dirección y quién levanta.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">3. Cada espacio físico que se mide es un <strong>recinto</strong> (ej: "Fachada norte", "Baño 2° piso"). Usa <strong>+ Recinto</strong> para crear los que necesites.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">4. Dentro del recinto, toca <strong>+ Agregar partida</strong> y elige del catálogo. Escribe las medidas (largo, ancho, alto según corresponda): <strong>la cantidad se calcula sola</strong>, no se escribe a mano.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">5. Toca <strong>FOTO</strong> en cada partida para adjuntar sus fotos — quedan numeradas F1, F2… automáticamente.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">6. Revisa <strong>Condiciones</strong> (acceso, energía, agua, altura, humedad, horario) antes de irte del sitio.</p>
+      </div>`)}
+
+    ${paso('02','El informe', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">Al terminar de medir, toca <strong>Generar informe</strong>. Es un documento de solo lectura: antecedentes de la obra, condiciones del sitio y cada partida con su cálculo detallado y sus fotos. No se edita ahí — para corregir una medida hay que volver a <strong>Terreno</strong>.</p>
+      </div>`)}
+
+    ${paso('03','La cotización', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">Desde el informe, <strong>Pasar a cotización</strong> lleva al rol Oficina. Ahí se ajusta el <strong>precio unitario</strong> de cada partida y se puede desmarcar una línea si no se va a cobrar. Gastos generales, utilidad e IVA se calculan solos según los parámetros de la empresa.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">Con <strong>Enviar</strong> se genera el PDF combinado (informe + cotización) y la OT pasa al rol Cliente para su firma.</p>
+      </div>`)}
+
+    ${paso('04','La firma', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">El mandante ve el documento resumido y firma con el dedo sobre la pantalla. Al aprobar, la OT queda marcada como <strong>Aprobada</strong> y aparece así en el panel de Oficina.</p>
+      </div>`)}
+
+    ${paso('05','Fotos y catálogo', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">El catálogo de precios (Oficina → Catálogo de precios) es el mismo para todo el equipo. Cambiar un precio ahí no afecta cotizaciones ya enviadas, solo las partidas que se agreguen después.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">Cada foto se reduce de tamaño automáticamente para no llenar el teléfono. Para verla en grande, tócala.</p>
+      </div>`)}
+
+    ${paso('06','Trabajar sin señal', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">La app funciona igual sin internet: todo se guarda en el equipo apenas se escribe. El indicador junto al logo muestra el estado:</p>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:12px">
+          <div><span class="netchip on" style="pointer-events:none"><i></i><span>En línea</span></span> — todo sincronizado.</div>
+          <div><span class="netchip warn" style="pointer-events:none"><i></i><span>Pendiente</span></span> — hay cambios sin subir; se suben solos al volver la señal.</div>
+          <div><span class="netchip" style="pointer-events:none"><i></i><span>Sin red</span></span> — no hay conexión ahora mismo, pero no se pierde nada.</div>
+        </div>
+        <p style="margin:10px 0 0;font-size:12.5px">La clave de acceso a la nube se ingresa una sola vez, en <strong>Oficina</strong>. Sin ella, la app guarda solo en ese equipo y no comparte con el resto del equipo.</p>
+      </div>`)}
+
+    ${paso('07','En el computador', `
+      <div class="card" style="padding:11px">
+        <p style="margin:0;font-size:12.5px">Es la misma app y la misma dirección: no hay una versión distinta que instalar. En una pantalla grande el contenido se acomoda solo, en columnas, para aprovechar el espacio — útil para Oficina cuando se revisan varias cotizaciones seguidas.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">En el celular conviene agregarla a la pantalla de inicio desde el menú del navegador, para abrirla como una app.</p>
+      </div>`)}
+  `;
 }
 </script>
 
