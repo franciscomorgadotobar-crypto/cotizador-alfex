@@ -792,6 +792,10 @@ function vTerreno(){
       <button class="btn btn-ghost" id="b-mas-recinto">+ Recinto</button>
     </div>
 
+    <label style="display:block;margin:14px 0 10px"><span class="cap">Nombre del recinto</span>
+      <input class="input" id="in-recinto-nombre" placeholder="Ej: Estacionamiento piso 3" value="${esc(rec.nombre)}">
+    </label>
+
     <div class="list-grid" style="display:flex;flex-direction:column;gap:17px">
       ${rec.items.length ? rec.items.map(it=> itemHTML(ot,it)).join('')
         : `<div class="blueprint" style="padding:20px 14px;text-align:center">${corners}
@@ -819,6 +823,12 @@ function vTerreno(){
     };
   });
   $$('[data-rec]').forEach(b=> b.onclick = ()=>{ S.areaIdx = +b.dataset.rec; render(); });
+  $('#in-recinto-nombre').oninput = e=>{
+    rec.nombre = e.target.value;
+    save();
+    const chip = $(`[data-rec="${S.areaIdx}"]`);
+    if(chip) chip.textContent = (rec.nombre || 'Recinto') + ' · ' + rec.items.length;
+  };
   $('#b-mas-recinto').onclick = ()=>{
     ot.recintos.push({id:uid(), nombre:'Recinto '+(ot.recintos.length+1), items:[]});
     S.areaIdx = ot.recintos.length-1; save(); render();
