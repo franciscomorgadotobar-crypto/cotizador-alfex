@@ -246,6 +246,7 @@ h2{font-size:26px;} .h2big{font-size:29px;}
     <section class="view" id="v-informe"></section>
     <section class="view" id="v-cotizacion"></section>
     <section class="view" id="v-oficina"></section>
+    <section class="view" id="v-clientes"></section>
     <section class="view" id="v-cliente"></section>
     <section class="view" id="v-tutorial"></section>
   </main>
@@ -647,7 +648,7 @@ async function sincronizar(manual=false){
 }
 
 /* ═══════════ NAVEGACIÓN ═══════════ */
-const VISTA_POR_ROL = {terreno:'visitas', oficina:'oficina', cliente:'cliente', tutorial:'tutorial'};
+const VISTA_POR_ROL = {terreno:'visitas', oficina:'oficina', cliente:'clientes', tutorial:'tutorial'};
 function irA(view){ S.view = view; cerrarSheet(); render(); $('#main').scrollTop = 0; }
 function setRol(rol){
   S.rol = rol;
@@ -657,7 +658,8 @@ function setRol(rol){
 function render(){
   $$('.view').forEach(v=> v.classList.toggle('on', v.id === 'v-'+S.view));
   const f = {visitas:vVisitas, terreno:vTerreno, informe:vInforme,
-             cotizacion:vCotizacion, oficina:vOficina, cliente:vCliente, tutorial:vTutorial}[S.view];
+             cotizacion:vCotizacion, oficina:vOficina, clientes:vClientes,
+             cliente:vCliente, tutorial:vTutorial}[S.view];
   if(f) f();
 }
 
@@ -1251,12 +1253,12 @@ async function pintarPersonas(){
 
 /* ═══════════ 6 · CLIENTE ═══════════ */
 function vCliente(){
-  const ot = getOT() || db.ots.find(o=> o.estado !== 'en_terreno') || db.ots[0];
-  if(!ot){ $('#v-cliente').innerHTML = '<h2>Propuesta</h2><p class="sub">Todavía no hay una propuesta enviada.</p>'; return; }
-  S.otId = ot.id;
+  const ot = getOT();
+  if(!ot){ irA('clientes'); return; }
   const r = calcular(ot), c = conteos(ot);
 
   $('#v-cliente').innerHTML = `
+    <button class="btn btn-ghost" id="b-otro-cliente" style="font-size:12px;margin-bottom:4px">← Elegir otro cliente</button>
     <div class="kick">Propuesta ${esc(ot.cot.numero||'—')} · ${esc(db.empresa.nombre)}</div>
     <h2>${esc(ot.obra||'Obra sin nombre')}</h2>
     <p class="sub" style="font-size:12px">${esc(ot.mandante||'—')} · ${esc([ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—')}</p>
@@ -1296,7 +1298,46 @@ function vCliente(){
       <button class="btn btn-secondary btn-block" id="b-cambios" style="font-size:13px">Solicitar cambios</button>`}`;
 
   $('#b-pdf-cli').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCombinado(ot), 60); };
+  $('#b-otro-cliente').onclick = ()=> irA('clientes');
   if(!ot.firma.firmado){ montarFirma(ot); }
+}
+
+/* ═══════════ CLIENTES: elegir el proyecto a revisar ═══════════ */
+let filtroCliente = '';
+function vClientes(){
+  $('#v-clientes').innerHTML = `
+    <h2 class="h2big">Clientes</h2>
+    <p class="sub">Elige el proyecto para ver su propuesta y firma.</p>
+    <input class="input" id="buscar-cliente" placeholder="Buscar por cliente o proyecto…" value="${esc(filtroCliente)}" style="margin-bottom:14px">
+    <div id="lista-clientes" class="list-grid" style="display:flex;flex-direction:column"></div>`;
+  $('#buscar-cliente').oninput = e=>{ filtroCliente = e.target.value; pintarListaClientes(); };
+  pintarListaClientes();
+}
+function pintarListaClientes(){
+  const tags = {cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
+  const q = filtroCliente.trim().toLowerCase();
+  const ots = db.ots
+    .filter(o=> o.estado !== 'en_terreno')
+    .filter(o=> !q || (o.mandante||'').toLowerCase().includes(q) || (o.obra||'').toLowerCase().includes(q))
+    .sort((a,b)=> b.updatedAt - a.updatedAt);
+  $('#lista-clientes').innerHTML = ots.length ? ots.map(o=>{
+    const r = calcular(o); const t = tags[o.estado] || tags.cotizado;
+    return `<div class="card blueprint" data-cli="${o.id}" style="cursor:pointer;margin-bottom:12px">${corners}
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div class="card-kicker">${esc(o.codigo)}${o.cot.numero? ' · '+esc(o.cot.numero):''}</div>
+          <div class="card-title">${esc(o.mandante || 'Sin mandante')}</div>
+          <div style="font-size:11.5px;opacity:.65;margin-top:2px">${esc(o.obra || 'Obra sin nombre')}</div>
+        </div>
+        <span class="tag ${t[1]}">${t[0]}</span>
+      </div>
+      <div style="font-family:var(--font-heading);font-weight:600;font-size:15px;margin-top:6px">${money(r.total)}</div>
+    </div>`;
+  }).join('') : `<div class="blueprint" style="padding:20px 14px;text-align:center">${corners}
+      <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">${q? 'Sin resultados' : 'Aún no hay propuestas enviadas'}</div>
+      <div style="font-size:12.5px;opacity:.7">${q? 'Prueba con otro nombre.' : 'Cuando Oficina envíe una cotización, aparecerá aquí.'}</div>
+    </div>`;
+  $$('[data-cli]').forEach(c=> c.onclick = ()=>{ S.otId = c.dataset.cli; irA('cliente'); });
 }
 
 function montarFirma(ot){
