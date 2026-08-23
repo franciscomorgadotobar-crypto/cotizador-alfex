@@ -8,6 +8,10 @@ import { getStore, getDeployStore } from "@netlify/blobs";
  * catalogo de precios) en Netlify Blobs, para que lo que se levanta en terreno
  * quede disponible en la oficina y en el resto de los equipos.
  *
+ * Nota: Netlify empaqueta las variables de entorno dentro del build de la
+ * funcion; un cambio de ALFEX_CLAVE requiere un deploy nuevo de este archivo
+ * para que la funcion en ejecucion la tome (no basta con guardarla).
+ *
  * Todas las llamadas exigen la clave compartida de la variable de entorno
  * ALFEX_CLAVE en el encabezado x-alfex-clave.
  */
