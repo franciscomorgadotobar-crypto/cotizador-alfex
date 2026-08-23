@@ -36,26 +36,38 @@ Construida sobre el handoff de diseño `design_handoff_alfex_levantamiento`
   repetido se resuelve solo al sincronizar.
 - **Offline primero**: todo se guarda en el equipo apenas se escribe
   (localStorage + IndexedDB para las fotos) y sube cuando hay red. El chip del
-  encabezado muestra el estado: *En línea*, *Pendiente*, *Sin red*, *Sin clave*.
+  encabezado muestra el estado: *En línea*, *Pendiente*, *Sin red*, *Sin sesión*.
 - **Conflictos**: gana la versión más reciente del levantamiento; el catálogo de
   precios y los parámetros se comparten entre todos los equipos.
 
 ## Acceso
 
-El guardado en la nube se protege con una clave compartida (variable
-`ALFEX_CLAVE` en Netlify). Cada persona la ingresa una vez, en el rol
-**Oficina**. Sin clave la app funciona igual, pero guardando solo en ese equipo.
+Cada persona entra con **su nombre y su clave**, en Oficina → *Tu cuenta*. No
+hay niveles de permiso — todas las cuentas ven y editan lo mismo — el login
+sirve para identificar quién hizo cada cosa (queda como "Levantó" en la OT),
+no para restringir. La primera persona que abre la app crea la primera
+cuenta; desde ahí, cualquiera que ya tenga sesión puede agregar a las demás
+(Oficina → Tu cuenta → *Personas con acceso* → *+ Agregar persona*), o
+quitarlas con el mismo panel.
+
+Las claves se guardan como hash SHA-256 en el servidor, nunca en texto plano.
+Sin sesión iniciada, la app funciona igual pero guarda solo en ese equipo, sin
+compartir con el resto.
+
+No hay ninguna variable de entorno que configurar en Netlify: todo el acceso
+vive en los datos de la app (Netlify Blobs), no en la configuración del sitio.
 
 ## Estructura
 
 ```
 public/index.html            La app completa (un solo archivo)
-netlify/functions/api.mts    API: levantamientos, fotos y ajustes compartidos
+netlify/functions/api.mts    API: levantamientos, fotos, ajustes y usuarios
 netlify.toml                 Configuración del sitio
 ```
 
-Los datos viven en **Netlify Blobs** (`alfex-levantamientos`, `alfex-fotos`,
-`alfex-ajustes`). No hay base de datos que administrar.
+Los datos viven en **Netlify Blobs**: `alfex-levantamientos`, `alfex-fotos`,
+`alfex-ajustes`, `alfex-usuarios` y `alfex-sesiones`. No hay base de datos que
+administrar.
 
 ## Datos de ejemplo vs. datos reales
 

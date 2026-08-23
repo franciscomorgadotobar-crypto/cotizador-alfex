@@ -4,19 +4,17 @@ import { getStore, getDeployStore } from "@netlify/blobs";
 /**
  * API de la app de levantamientos de ALFEX.
  *
- * Guarda los levantamientos, las fotos y los ajustes (datos de la empresa y
- * catalogo de precios) en Netlify Blobs, para que lo que se levanta en terreno
- * quede disponible en la oficina y en el resto de los equipos.
+ * Guarda los levantamientos, las fotos, los ajustes (datos de la empresa y
+ * catalogo de precios) y las personas del equipo en Netlify Blobs, para que
+ * lo que se levanta en terreno quede disponible en la oficina y en el resto
+ * de los equipos.
  *
- * Nota: Netlify empaqueta las variables de entorno dentro del build de la
- * funcion; un cambio de ALFEX_CLAVE requiere un deploy nuevo de este archivo
- * para que la funcion en ejecucion la tome (no basta con guardarla).
- *
- * Todas las llamadas exigen la clave compartida de la variable de entorno
- * ALFEX_CLAVE en el encabezado x-alfex-clave.
+ * El acceso es por persona: cada quien crea su cuenta (nombre + clave) desde
+ * la app y entra con eso. No hay niveles de permiso — todas las cuentas ven
+ * y editan lo mismo — el login sirve para identificar quien hizo cada cosa,
+ * no para restringir. Las claves se guardan como hash SHA-256, nunca en
+ * texto plano.
  */
-
-const HEADER_CLAVE = "x-alfex-clave";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -33,18 +31,25 @@ function store(nombre: string) {
   return contexto === "production" ? getStore(opciones) : getDeployStore(opciones);
 }
 
-export default async (req: Request, _context: Context) => {
-  const clave = Netlify.env.get("ALFEX_CLAVE");
-  if (!clave) {
-    return json(
-      { error: "El sitio no tiene configurada la clave de acceso (variable ALFEX_CLAVE)." },
-      503,
-    );
-  }
-  if (req.headers.get(HEADER_CLAVE) !== clave) {
-    return json({ error: "Clave de acceso incorrecta." }, 401);
-  }
+type Usuario = { id: string; nombre: string; claveHash: string };
+type Sesion = { id: string; nombre: string; creadoEn: number };
 
+async function listaUsuarios(): Promise<Usuario[]> {
+  const u = store("alfex-usuarios");
+  const { blobs } = await u.list();
+  const todos = await Promise.all(blobs.map((b) => u.get(b.key, { type: "json" }).catch(() => null)));
+  return todos.filter(Boolean) as Usuario[];
+}
+
+async function sesionValida(req: Request): Promise<Sesion | null> {
+  const token = req.headers.get("x-alfex-token");
+  if (!token) return null;
+  const s = store("alfex-sesiones");
+  const sesion = await s.get(token, { type: "json" });
+  return (sesion as Sesion) || null;
+}
+
+export default async (req: Request, _context: Context) => {
   const url = new URL(req.url);
   const partes = url.pathname.replace(/^\/api\/?/, "").split("/").filter(Boolean);
   const recurso = partes[0] ?? "";
@@ -52,11 +57,77 @@ export default async (req: Request, _context: Context) => {
   const metodo = req.method.toUpperCase();
 
   try {
-    // --- estado: sirve para validar la clave desde la app ---
+    // --- estado: sin sesion, solo para saber si el sitio tiene la API instalada ---
     if (recurso === "estado" && metodo === "GET") {
-      const { blobs } = await store("alfex-levantamientos").list();
-      return json({ ok: true, levantamientos: blobs.length });
+      const usuarios = await listaUsuarios();
+      return json({ ok: true, usuarios: usuarios.length });
     }
+
+    // --- usuarios: los nombres son visibles sin sesion (para elegir "quien eres");
+    //     crear la primera cuenta tampoco requiere sesion (no hay a quien pedirsela);
+    //     de ahi en mas, crear/editar/borrar exige estar identificado con alguna cuenta ---
+    if (recurso === "usuarios") {
+      const u = store("alfex-usuarios");
+
+      if (metodo === "GET" && !id) {
+        const todos = await listaUsuarios();
+        return json(todos.map((x) => ({ id: x.id, nombre: x.nombre })));
+      }
+      if (metodo === "POST" && !id) {
+        const todos = await listaUsuarios();
+        if (todos.length > 0 && !(await sesionValida(req))) {
+          return json({ error: "Inicia sesión para agregar a otra persona." }, 401);
+        }
+        const cuerpo = await req.json();
+        const nombre = String(cuerpo.nombre || "").trim();
+        const claveHash = String(cuerpo.claveHash || "");
+        if (!nombre || !claveHash) return json({ error: "Falta el nombre o la clave." }, 400);
+        if (todos.some((x) => x.nombre.toLowerCase() === nombre.toLowerCase())) {
+          return json({ error: "Ya existe una persona con ese nombre." }, 409);
+        }
+        const nuevo: Usuario = { id: crypto.randomUUID(), nombre, claveHash };
+        await u.setJSON(nuevo.id, nuevo);
+        return json({ id: nuevo.id, nombre: nuevo.nombre });
+      }
+      if (metodo === "PUT" && id) {
+        if (!(await sesionValida(req))) return json({ error: "Sesión requerida." }, 401);
+        const actual = (await u.get(id, { type: "json" })) as Usuario | null;
+        if (!actual) return json({ error: "No existe esa persona." }, 404);
+        const cuerpo = await req.json();
+        const actualizado: Usuario = {
+          ...actual,
+          ...(cuerpo.nombre ? { nombre: String(cuerpo.nombre).trim() } : {}),
+          ...(cuerpo.claveHash ? { claveHash: String(cuerpo.claveHash) } : {}),
+        };
+        await u.setJSON(id, actualizado);
+        return json({ ok: true });
+      }
+      if (metodo === "DELETE" && id) {
+        if (!(await sesionValida(req))) return json({ error: "Sesión requerida." }, 401);
+        await u.delete(id);
+        return json({ ok: true });
+      }
+    }
+
+    // --- login: nombre + hash de clave -> token de sesion ---
+    if (recurso === "login" && metodo === "POST") {
+      const cuerpo = await req.json();
+      const nombre = String(cuerpo.nombre || "").trim();
+      const claveHash = String(cuerpo.claveHash || "");
+      const todos = await listaUsuarios();
+      const usuario = todos.find((x) => x.nombre.toLowerCase() === nombre.toLowerCase());
+      if (!usuario || usuario.claveHash !== claveHash) {
+        return json({ error: "Nombre o clave incorrectos." }, 401);
+      }
+      const token = crypto.randomUUID();
+      const s = store("alfex-sesiones");
+      await s.setJSON(token, { id: usuario.id, nombre: usuario.nombre, creadoEn: Date.now() });
+      return json({ token, id: usuario.id, nombre: usuario.nombre });
+    }
+
+    // --- de aqui en adelante, todo exige sesion valida ---
+    const sesion = await sesionValida(req);
+    if (!sesion) return json({ error: "Sesión requerida." }, 401);
 
     // --- levantamientos ---
     if (recurso === "levantamientos") {

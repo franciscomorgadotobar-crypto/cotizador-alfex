@@ -384,7 +384,7 @@ async function photoGet(id, permitirNube = true){
     rec = await new Promise((res,rej)=>{ const rq=d.transaction('fotos').objectStore('fotos').get(id); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); });
   }catch(e){}
   if(rec){ photoCache.set(id, rec); return rec; }
-  if(permitirNube && NUBE.hayApi && NUBE.clave){
+  if(permitirNube && NUBE.hayApi && NUBE.token){
     try{
       const r = await api('fotos/'+id);
       if(r && r.full){
@@ -435,7 +435,7 @@ function nuevaOT(){
     id: uid(),
     codigo: 'OT-' + (db.seqOT++),
     obra:'', mandante:'', email:'', direccion:'', comuna:'', gps:null,
-    fechaVisita: hoyISO(), levantoPor:'', estado:'en_terreno',
+    fechaVisita: hoyISO(), levantoPor: (typeof NUBE!=='undefined' && NUBE.nombre) || '', estado:'en_terreno',
     checks,
     recintos: [{id:uid(), nombre:'Recinto 1', items:[]}],
     fotos: [],
@@ -516,18 +516,37 @@ function checksActivos(ot){ return CHECKLIST_BASE.filter(c=> ot.checks[c.key] &&
 
 <script>
 /* ═══════════ NUBE (offline primero) ═══════════ */
+/* El acceso es por persona: nombre + clave, sin niveles de permiso — el
+   login es para identificar quien hizo cada cosa, no para restringir. */
 const NUBE = {
   disponible: location.protocol === 'http:' || location.protocol === 'https:',
-  hayApi: null, clave: '', corriendo:false, estado:'local', timer:null
+  hayApi: null, token: '', nombre: '', corriendo:false, estado:'local', timer:null
 };
-try{ NUBE.clave = localStorage.getItem('alfex_clave') || ''; }catch(e){}
+try{
+  NUBE.token = localStorage.getItem('alfex_token') || '';
+  NUBE.nombre = localStorage.getItem('alfex_nombre') || '';
+}catch(e){}
+
+async function sha256(texto){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
+  return Array.from(new Uint8Array(buf)).map(b=> b.toString(16).padStart(2,'0')).join('');
+}
+function guardarSesion(token, nombre){
+  NUBE.token = token; NUBE.nombre = nombre;
+  try{ localStorage.setItem('alfex_token', token); localStorage.setItem('alfex_nombre', nombre); }catch(e){}
+}
+function cerrarSesion(){
+  NUBE.token = ''; NUBE.nombre = '';
+  try{ localStorage.removeItem('alfex_token'); localStorage.removeItem('alfex_nombre'); }catch(e){}
+  setNube('sinsesion');
+}
 
 async function api(ruta, opts={}){
-  const headers = Object.assign({'x-alfex-clave': NUBE.clave}, opts.headers||{});
+  const headers = Object.assign(NUBE.token ? {'x-alfex-token': NUBE.token} : {}, opts.headers||{});
   if(opts.body) headers['content-type'] = 'application/json';
   const r = await fetch('/api/'+ruta, Object.assign({}, opts, {headers}));
   if(!(r.headers.get('content-type')||'').includes('json')){ NUBE.hayApi = false; throw new Error('sinapi'); }
-  if(r.status === 401) throw new Error('clave');
+  if(r.status === 401) throw new Error('sesion');
   if(!r.ok){
     let d=''; try{ d = (await r.json()).error||''; }catch(e){}
     throw new Error(d || ('HTTP '+r.status));
@@ -535,9 +554,9 @@ async function api(ruta, opts={}){
   return r.json();
 }
 const NUBE_TXT = {
-  local:['Sin red',''], sinnube:['Sin red',''], sinclave:['Sin clave','warn'],
+  local:['Sin red',''], sinnube:['Sin red',''], sinsesion:['Sin sesión','warn'],
   sync:['Sincroniza…','warn'], ok:['En línea','on'], pend:['Pendiente','warn'],
-  sinred:['Sin red',''], clavemala:['Clave mala','warn'], error:['Error','warn']
+  sinred:['Sin red',''], sesionmala:['Sesión inválida','warn'], error:['Error','warn']
 };
 function setNube(e){
   NUBE.estado = e;
@@ -547,14 +566,14 @@ function setNube(e){
 }
 const hayPendientes = ()=> db.ots.some(o=>o.dirty) || (db.borrados||[]).length > 0;
 function programarSync(){
-  if(!NUBE.disponible || !NUBE.clave || NUBE.hayApi === false) return;
+  if(!NUBE.disponible || !NUBE.token || NUBE.hayApi === false) return;
   if(hayPendientes()) setNube('pend');
   clearTimeout(NUBE.timer);
   NUBE.timer = setTimeout(()=> sincronizar(), 2500);
 }
 async function sincronizar(manual=false){
   if(!NUBE.disponible){ setNube('local'); return; }
-  if(!NUBE.clave){ setNube('sinclave'); return; }
+  if(!NUBE.token){ setNube('sinsesion'); return; }
   if(NUBE.hayApi === false){ setNube('sinnube'); return; }
   if(NUBE.corriendo) return;
   if(!navigator.onLine){ setNube('sinred'); return; }
@@ -620,10 +639,10 @@ async function sincronizar(manual=false){
     if(manual) toast('Sincronizado con la nube.');
     if(cambios) render();
   }catch(e){
-    const mala = e.message==='clave', sinApi = e.message==='sinapi';
-    setNube(mala ? 'clavemala' : sinApi ? 'sinnube' : 'error');
+    const malaSesion = e.message==='sesion', sinApi = e.message==='sinapi';
+    if(malaSesion) cerrarSesion(); else setNube(sinApi ? 'sinnube' : 'error');
     saveLocal();
-    if(manual) toast(mala ? 'La clave de acceso es incorrecta.' : sinApi ? 'Este sitio no tiene la nube instalada.' : 'No se pudo sincronizar.');
+    if(manual) toast(malaSesion ? 'Tu sesión ya no es válida. Vuelve a entrar.' : sinApi ? 'Este sitio no tiene la nube instalada.' : 'No se pudo sincronizar.');
   }finally{ NUBE.corriendo = false; }
 }
 
@@ -1050,14 +1069,18 @@ function vOficina(){
   $('#v-oficina').innerHTML = `
     <h2 class="h2big">Oficina técnica</h2>
     <p class="sub">Levantamientos del equipo, listos para cotizar y enviar.</p>
-    <div class="kpis">
+
+    <div class="sec"><span class="n">01</span><h3>Tu cuenta</h3><span class="rule"></span></div>
+    <div id="cuenta-box">Cargando…</div>
+
+    <div class="kpis" style="margin-top:18px">
       <div class="kpi blueprint">${corners}<div class="l">Levantamientos</div><div class="v">${db.ots.length}</div><div class="s">en total</div></div>
       <div class="kpi blueprint">${corners}<div class="l">Por cotizar</div><div class="v">${conMonto.filter(x=> x.o.estado==='en_terreno').length}</div><div class="s">aún en terreno</div></div>
       <div class="kpi blueprint">${corners}<div class="l">Enviadas</div><div class="v" style="font-size:20px">${money(totalEnviado)}</div><div class="s">en ${enviadas.length} propuesta${enviadas.length===1?'':'s'}</div></div>
       <div class="kpi blueprint">${corners}<div class="l">Tasa cierre</div><div class="v">${cierre}%</div><div class="s">${aprobadas.length} aprobada${aprobadas.length===1?'':'s'}</div></div>
     </div>
 
-    <div class="sec"><span class="n">01</span><h3>Pipeline</h3><span class="rule"></span></div>
+    <div class="sec"><span class="n">02</span><h3>Pipeline</h3><span class="rule"></span></div>
     <table class="table"><thead><tr><th>OT / obra</th><th>Estado</th><th style="text-align:right">Monto</th></tr></thead>
       <tbody>${conMonto.length ? conMonto.map(({o,r})=>{
         const t = tags[o.estado] || tags.en_terreno;
@@ -1068,16 +1091,13 @@ function vOficina(){
           <td class="num" style="font-size:14px">${r.total?money(r.total):'—'}</td></tr>`;
       }).join('') : '<tr><td colspan="3" style="opacity:.6">Todavía no hay levantamientos.</td></tr>'}</tbody></table>
 
-    <div class="sec"><span class="n">02</span><h3>Ajustes</h3><span class="rule"></span></div>
+    <div class="sec"><span class="n">03</span><h3>Ajustes</h3><span class="rule"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <label><span class="cap">Gastos generales %</span><input class="input" inputmode="decimal" data-p="gg" value="${db.params.gg*100}"></label>
       <label><span class="cap">Utilidad %</span><input class="input" inputmode="decimal" data-p="utilidad" value="${db.params.utilidad*100}"></label>
       <label><span class="cap">IVA %</span><input class="input" inputmode="decimal" data-p="iva" value="${db.params.iva*100}"></label>
       <label><span class="cap">Validez días</span><input class="input" inputmode="numeric" data-p="validezDias" value="${db.params.validezDias}"></label>
     </div>
-    <label style="display:block;margin-top:10px"><span class="cap">Clave de la nube</span>
-      <input class="input" type="password" id="nube-clave" value="${esc(NUBE.clave)}" placeholder="Clave que entrega ALFEX"></label>
-    <button class="btn btn-secondary btn-block" id="b-sync" style="font-size:13px">Sincronizar ahora</button>
     <button class="btn btn-secondary btn-block" id="b-catalogo-edit" style="font-size:13px">Catálogo de precios (${db.catalogo.length})</button>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn btn-secondary" id="b-export" style="flex:1;font-size:12px">Exportar respaldo</button>
@@ -1094,16 +1114,139 @@ function vOficina(){
     db.params[k] = (k === 'validezDias') ? num(inp.value) : num(inp.value)/100;
     marcarAjustes();
   });
-  $('#nube-clave').oninput = e=>{
-    NUBE.clave = e.target.value.trim();
-    try{ localStorage.setItem('alfex_clave', NUBE.clave); }catch(err){}
-    setNube(NUBE.clave ? 'pend' : 'sinclave');
-  };
-  $('#b-sync').onclick = ()=> sincronizar(true);
   $('#b-catalogo-edit').onclick = ()=> abrirSheet('precios');
   $('#b-export').onclick = exportarJSON;
   $('#b-import').onclick = ()=> $('#f-import').click();
   $('#f-import').onchange = e=>{ if(e.target.files[0]) importarJSON(e.target.files[0]); e.target.value=''; };
+  pintarCuenta();
+}
+
+/* --- Cuenta: entrar, crear la propia, o administrar a las demas personas --- */
+let cuentaModo = 'entrar'; // 'entrar' | 'crear'
+async function pintarCuenta(){
+  const box = $('#cuenta-box'); if(!box) return;
+  if(!NUBE.disponible){
+    box.innerHTML = `<p class="sub" style="margin:0">Abierta como archivo local: el guardado compartido no está disponible aquí.</p>`;
+    return;
+  }
+  if(NUBE.token){
+    box.innerHTML = `<div class="card" style="padding:11px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:0"><span class="cap">Sesión</span>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:16px">${esc(NUBE.nombre)}</div></div>
+          <button class="btn btn-secondary" id="b-sync" style="font-size:12px">Sincronizar</button>
+          <button class="btn btn-secondary" id="b-cerrar-sesion" style="font-size:12px">Cerrar sesión</button>
+        </div>
+      </div>
+      <div id="personas-box" style="margin-top:10px"></div>`;
+    $('#b-sync').onclick = ()=> sincronizar(true);
+    $('#b-cerrar-sesion').onclick = ()=>{ cerrarSesion(); render(); };
+    await pintarPersonas();
+    return;
+  }
+  let usuarios = [];
+  try{ usuarios = await api('usuarios'); }
+  catch(e){
+    box.innerHTML = `<p class="sub" style="margin:0;color:var(--color-accent-700)">No se pudo conectar con la nube todavía.</p>`;
+    return;
+  }
+  if(!usuarios.length) cuentaModo = 'crear';
+
+  if(cuentaModo === 'crear'){
+    box.innerHTML = `
+      <p class="sub" style="margin:0 0 8px">${usuarios.length? 'Crea tu cuenta para entrar.' : 'Nadie ha entrado todavía: crea la cuenta de la primera persona.'}</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label><span class="cap">Tu nombre</span><input class="input" id="c-nombre" placeholder="Nombre y apellido"></label>
+        <label><span class="cap">Clave</span><input class="input" type="password" id="c-clave" placeholder="Elige una clave"></label>
+        <label><span class="cap">Repite la clave</span><input class="input" type="password" id="c-clave2"></label>
+        <button class="btn btn-primary" id="b-crear-cuenta">Crear cuenta y entrar</button>
+        ${usuarios.length? `<button class="btn btn-ghost" id="b-ir-entrar" style="font-size:12px">Ya tengo cuenta</button>` : ''}
+      </div>`;
+    $('#b-crear-cuenta').onclick = async ()=>{
+      const nombre = $('#c-nombre').value.trim();
+      const clave = $('#c-clave').value, clave2 = $('#c-clave2').value;
+      if(!nombre || !clave){ toast('Escribe tu nombre y una clave.'); return; }
+      if(clave !== clave2){ toast('Las claves no coinciden.'); return; }
+      try{
+        const claveHash = await sha256(clave);
+        await api('usuarios', {method:'POST', body: JSON.stringify({nombre, claveHash})});
+        const r = await api('login', {method:'POST', body: JSON.stringify({nombre, claveHash})});
+        guardarSesion(r.token, r.nombre);
+        setNube('pend'); sincronizar(true); render();
+        toast('Cuenta creada. Bienvenido, ' + r.nombre + '.');
+      }catch(e){ toast(e.message || 'No se pudo crear la cuenta.'); }
+    };
+    if(usuarios.length) $('#b-ir-entrar').onclick = ()=>{ cuentaModo='entrar'; pintarCuenta(); };
+    return;
+  }
+
+  box.innerHTML = `
+    <p class="sub" style="margin:0 0 8px">Entra con tu nombre y tu clave.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label><span class="cap">Nombre</span>
+        <select class="input" id="c-nombre-sel">${usuarios.map(u=> `<option value="${esc(u.nombre)}">${esc(u.nombre)}</option>`).join('')}</select></label>
+      <label><span class="cap">Clave</span><input class="input" type="password" id="c-clave-in"></label>
+      <button class="btn btn-primary" id="b-entrar">Entrar</button>
+      <button class="btn btn-ghost" id="b-ir-crear" style="font-size:12px">Soy una persona nueva</button>
+    </div>`;
+  $('#b-entrar').onclick = async ()=>{
+    const nombre = $('#c-nombre-sel').value;
+    const clave = $('#c-clave-in').value;
+    if(!clave){ toast('Escribe tu clave.'); return; }
+    try{
+      const claveHash = await sha256(clave);
+      const r = await api('login', {method:'POST', body: JSON.stringify({nombre, claveHash})});
+      guardarSesion(r.token, r.nombre);
+      setNube('pend'); sincronizar(true); render();
+      toast('Hola, ' + r.nombre + '.');
+    }catch(e){ toast('Nombre o clave incorrectos.'); }
+  };
+  $('#b-ir-crear').onclick = ()=>{ cuentaModo='crear'; pintarCuenta(); };
+}
+
+async function pintarPersonas(){
+  const box = $('#personas-box'); if(!box) return;
+  let usuarios = [];
+  try{ usuarios = await api('usuarios'); }catch(e){ box.innerHTML=''; return; }
+  box.innerHTML = `
+    <div class="cap" style="margin-bottom:6px">Personas con acceso</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${usuarios.map(u=> `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+          <span style="flex:1">${esc(u.nombre)}${u.nombre===NUBE.nombre?' (tú)':''}</span>
+          <button class="btn btn-ghost" data-delu="${u.id}" style="font-size:16px;padding:0 6px">×</button>
+        </div>`).join('')}
+    </div>
+    <button class="btn btn-secondary btn-block" id="b-agregar-persona" style="font-size:12px;margin-top:8px">+ Agregar persona</button>
+    <div id="agregar-persona-box"></div>`;
+  $$('[data-delu]', box).forEach(b=> b.onclick = async ()=>{
+    const u = usuarios.find(x=> x.id === b.dataset.delu);
+    if(!confirm(`¿Quitar a ${u.nombre} del equipo?`)) return;
+    try{
+      await api('usuarios/'+u.id, {method:'DELETE'});
+      if(u.nombre === NUBE.nombre) cerrarSesion();
+      toast('Persona eliminada.');
+      render();
+    }catch(e){ toast('No se pudo eliminar.'); }
+  });
+  $('#b-agregar-persona').onclick = ()=>{
+    $('#agregar-persona-box').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <input class="input" id="np-nombre" placeholder="Nombre y apellido">
+        <input class="input" type="password" id="np-clave" placeholder="Clave">
+        <button class="btn btn-primary" id="np-crear" style="font-size:12px">Crear</button>
+      </div>`;
+    $('#np-crear').onclick = async ()=>{
+      const nombre = $('#np-nombre').value.trim();
+      const clave = $('#np-clave').value;
+      if(!nombre || !clave){ toast('Falta el nombre o la clave.'); return; }
+      try{
+        const claveHash = await sha256(clave);
+        await api('usuarios', {method:'POST', body: JSON.stringify({nombre, claveHash})});
+        toast(nombre + ' fue agregado.');
+        await pintarPersonas();
+      }catch(e){ toast(e.message || 'No se pudo agregar.'); }
+    };
+  };
 }
 
 /* ═══════════ 6 · CLIENTE ═══════════ */
@@ -1243,7 +1386,7 @@ function vTutorial(){
           <div><span class="netchip warn" style="pointer-events:none"><i></i><span>Pendiente</span></span> — hay cambios sin subir; se suben solos al volver la señal.</div>
           <div><span class="netchip" style="pointer-events:none"><i></i><span>Sin red</span></span> — no hay conexión ahora mismo, pero no se pierde nada.</div>
         </div>
-        <p style="margin:10px 0 0;font-size:12.5px">La clave de acceso a la nube se ingresa una sola vez, en <strong>Oficina</strong>. Sin ella, la app guarda solo en ese equipo y no comparte con el resto del equipo.</p>
+        <p style="margin:10px 0 0;font-size:12.5px">Cada persona entra una sola vez, en <strong>Oficina → Tu cuenta</strong>, con su nombre y su clave. Sin sesión iniciada, la app guarda solo en ese equipo y no comparte con el resto.</p>
       </div>`)}
 
     ${paso('07','En el computador', `
@@ -1595,7 +1738,7 @@ async function importarJSON(file){
 $$('nav.roles button').forEach(b=> b.onclick = ()=> setRol(b.dataset.rol));
 $('#overlay-tap').onclick = cerrarSheet;
 $('#netchip').onclick = ()=>{
-  if(!NUBE.clave){ setRol('oficina'); toast('Ingresa la clave de la nube en Oficina.'); return; }
+  if(!NUBE.token){ setRol('oficina'); toast('Entra con tu cuenta en Oficina.'); return; }
   sincronizar(true);
 };
 window.addEventListener('online', ()=> sincronizar());
@@ -1607,10 +1750,10 @@ setNube(!NUBE.disponible ? 'local' : 'sync');
 (async function detectarNube(){
   if(!NUBE.disponible){ setNube('local'); return; }
   try{
-    const r = await fetch('/api/estado', {headers:{'x-alfex-clave': NUBE.clave || 'sin-clave'}});
+    const r = await fetch('/api/estado');
     if(!(r.headers.get('content-type')||'').includes('json')){ NUBE.hayApi = false; setNube('sinnube'); return; }
     NUBE.hayApi = true;
-    if(NUBE.clave) sincronizar(); else setNube('sinclave');
+    if(NUBE.token) sincronizar(); else setNube('sinsesion');
   }catch(e){ setNube('sinred'); }
 })();
 </script>
