@@ -204,6 +204,21 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
+    // --- historial: creaciones, eliminaciones y cambios relevantes de todo el equipo ---
+    if (recurso === "historial") {
+      const s = store("alfex-historial");
+
+      if (metodo === "GET") {
+        const h = await s.get("historial", { type: "json" });
+        return json(h ?? null);
+      }
+      if (metodo === "PUT") {
+        const cuerpo = await req.json();
+        await s.setJSON("historial", cuerpo);
+        return json({ ok: true });
+      }
+    }
+
     return json({ error: "Ruta no encontrada." }, 404);
   } catch (e) {
     return json({ error: "Error en el servidor: " + (e as Error).message }, 500);
