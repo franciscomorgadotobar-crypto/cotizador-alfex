@@ -86,6 +86,17 @@ figure{margin:0;}
 textarea.input{min-height:44px;resize:vertical;}
 .cap{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;opacity:.7;}
 
+/* Buscador con lista desplegable (autocompletar cliente/sucursal, contacto) */
+.autocomplete-wrap{position:relative;}
+.autocomplete-list{position:absolute;left:0;right:0;top:100%;z-index:30;background:var(--color-surface);
+  border:1px solid var(--color-divider);max-height:220px;overflow-y:auto;}
+.autocomplete-item{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--color-divider);
+  padding:9px 10px;font-size:12.5px;font-family:inherit;color:var(--color-text);cursor:pointer;}
+.autocomplete-item:last-child{border-bottom:none;}
+.autocomplete-item:hover{background:color-mix(in srgb, var(--color-text) 6%, transparent);}
+.autocomplete-item .s{display:block;font-size:10px;opacity:.6;margin-top:1px;}
+.autocomplete-item.autocomplete-nuevo{color:var(--color-accent-700);font-weight:600;}
+
 /* ── Tarjetas, tags, tablas ── */
 .card{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3);
   border-radius:0;background:transparent;border:1px solid var(--color-divider);}
@@ -313,6 +324,17 @@ let db = {ots:[], catalogo:[], clientes:[], params:{}, empresa:{}, seqOT:2451, s
           borrados:[], fotosSubidas:{}, ajustesTs:0, clientesTs:0};
 let S = {rol:'terreno', view:'visitas', otId:null, clienteId:null, clienteNombre:null, areaIdx:0, sheet:null, volverA:null};
 let agendaSel = {clienteId:'', sucursalId:'', nuevo:false};
+/** OT a la que hay que volver a asignar el cliente recién creado, cuando
+ *  "Datos de la OT" mandó a Incorporar cliente por no encontrarlo. */
+let clienteIncorporarDesdeOT = null;
+/** Cliente + sucursal, aplanado para el buscador de asignación de OT. */
+function opcionesClienteSucursal(){
+  const out = [];
+  db.clientes.forEach(c=> (c.sucursales||[]).forEach(s=>
+    out.push({clienteId:c.id, clienteNombre:c.nombre, sucursalId:s.id, sucursalNombre:s.nombre,
+      direccion:s.direccion, encargado:s.encargado, telefono:s.telefono})));
+  return out;
+}
 const photoCache = new Map();
 
 /* ═══════════ UTILIDADES ═══════════ */
@@ -457,15 +479,15 @@ function nuevaOT(){
   return {
     id: uid(),
     codigo: 'OT-' + (db.seqOT++),
-    obra:'', cliente:'', clienteId:null, sucursalId:null, contactoObra:'', email:'', direccion:'', comuna:'', gps:null,
+    obra:'', cliente:'', clienteId:null, sucursalId:null, contactoObra:'', contactoObraTelefono:'', email:'', direccion:'', comuna:'', gps:null,
     fechaVisita: hoyISO(), levantoPor: (typeof NUBE!=='undefined' && NUBE.nombre) || '', estado:'en_terreno',
     agenda: null,
     checks,
     recintos: [{id:uid(), nombre:'Recinto 1', items:[]}],
     fotos: [],
     cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas:'', plazoDias: db.params.plazoDias, utilidadPct: db.params.utilidadDefault},
-    firmaTerreno: {firmado:false, por:'', fecha:'', dataUrl:''},
-    firma: {firmado:false, por:'', fecha:'', dataUrl:'', via:''},
+    firmaTerreno: {firmado:false, por:'', telefono:'', fecha:'', dataUrl:''},
+    firma: {firmado:false, por:'', telefono:'', fecha:'', dataUrl:'', via:''},
     createdAt: Date.now(), updatedAt: Date.now(), dirty:true
   };
 }
@@ -494,14 +516,14 @@ function migrarV1(v){
   return {
     id: v.id, codigo: v.folio || ('OT-' + (db.seqOT++)),
     obra: v.obra||'', cliente: (v.cliente&&v.cliente.nombre)||'', clienteId:null, sucursalId:null,
-    contactoObra: (v.cliente&&v.cliente.contacto)||'', email:(v.cliente&&v.cliente.email)||'',
+    contactoObra: (v.cliente&&v.cliente.contacto)||'', contactoObraTelefono:'', email:(v.cliente&&v.cliente.email)||'',
     direccion: v.direccion||'', comuna: v.comuna||'', gps: v.gps||null,
     fechaVisita: v.fecha || hoyISO(), levantoPor: v.responsable||'', estado:'en_terreno', agenda:null,
     checks, recintos:[recinto],
     fotos: (v.fotos||[]).map((f,i)=> ({id:f.id, itemId:f.partidaId, recintoId:recinto.id, label:'F'+(i+1)})),
     cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas: v.observaciones||'', plazoDias: db.params.plazoDias, utilidadPct: db.params.utilidadDefault},
-    firmaTerreno: {firmado:false, por:'', fecha:'', dataUrl:''},
-    firma: {firmado:false, por:'', fecha:'', dataUrl:'', via:''},
+    firmaTerreno: {firmado:false, por:'', telefono:'', fecha:'', dataUrl:''},
+    firma: {firmado:false, por:'', telefono:'', fecha:'', dataUrl:'', via:''},
     createdAt: v.createdAt || Date.now(), updatedAt: v.updatedAt || Date.now(), dirty:true
   };
 }
@@ -514,9 +536,12 @@ function normalizarOT(o){
   if(o.clienteId === undefined) o.clienteId = null;
   if(o.sucursalId === undefined) o.sucursalId = null;
   if(o.contactoObra === undefined) o.contactoObra = '';
+  if(o.contactoObraTelefono === undefined) o.contactoObraTelefono = '';
   if(o.agenda === undefined) o.agenda = null;
-  if(!o.firmaTerreno) o.firmaTerreno = {firmado:false, por:'', fecha:'', dataUrl:''};
+  if(!o.firmaTerreno) o.firmaTerreno = {firmado:false, por:'', telefono:'', fecha:'', dataUrl:''};
+  if(o.firmaTerreno.telefono === undefined) o.firmaTerreno.telefono = '';
   if(o.firma && o.firma.via === undefined) o.firma.via = o.firma.firmado ? 'firma' : '';
+  if(o.firma && o.firma.telefono === undefined) o.firma.telefono = '';
   if(o.cot && (o.cot.utilidadPct === undefined || o.cot.utilidadPct === null)){
     o.cot.utilidadPct = db.params.utilidadDefault;
   }
@@ -761,7 +786,9 @@ function vVisitas(){
   });
   $('#b-nueva-ot').onclick = ()=>{
     const ot = nuevaOT(); db.ots.push(ot); S.otId = ot.id; S.areaIdx = 0;
-    save(); irA('terreno'); toast(ot.codigo + ' creada.');
+    save(); irA('terreno');
+    abrirSheet('datos');
+    toast(ot.codigo + ' creada. Asígnale un cliente.');
   };
   $('#b-agendar').onclick = ()=> abrirSheet('agendar');
 }
@@ -770,11 +797,13 @@ function vVisitas(){
 function vTerreno(){
   const ot = getOT(); if(!ot){ irA('visitas'); return; }
   const rec = getRecinto(ot); const c = conteos(ot);
+  const sucAsignadaKick = ot.clienteId && (db.clientes.find(x=> x.id===ot.clienteId)||{sucursales:[]}).sucursales.find(s=> s.id===ot.sucursalId);
+  const kickTexto = ot.clienteId ? `${esc(ot.cliente)}${sucAsignadaKick ? ' · ' + esc(sucAsignadaKick.nombre) : ''}` : `${esc(ot.codigo)} · Captura en terreno`;
   $('#v-terreno').innerHTML = `
     <button class="btn btn-ghost btn-volver" id="b-volver-visitas">← Volver a Visitas</button>
     <div style="display:flex;gap:10px;align-items:flex-start">
       <div style="flex:1;min-width:0">
-        <div class="kick">${esc(ot.codigo)} · Captura en terreno</div>
+        <div class="kick">${kickTexto}</div>
         <h2 contenteditable="true" data-f="obra" data-ph="Nombre de la obra" style="font-size:24px;outline:none">${esc(ot.obra || 'Nombre de la obra')}</h2>
         <div style="font-size:11.5px;opacity:.65">
           <span contenteditable="true" data-f="comuna" data-ph="Comuna">${esc(ot.comuna || 'Comuna')}</span> ·
@@ -987,6 +1016,9 @@ async function agregarFotos(files, itemId){
 function vInforme(){
   const ot = getOT(); if(!ot){ irA('visitas'); return; }
   const c = conteos(ot);
+  const clienteFT = ot.clienteId && db.clientes.find(x=> x.id===ot.clienteId);
+  const contactosTerreno = clienteFT ? clienteFT.sucursales.filter(s=> s.encargado) : [];
+  let sucursalContactoElegida = ot.sucursalId;
   let n = 1;
   const secciones = ot.recintos.filter(r=> r.items.length).map(r=>{
     n++;
@@ -1033,13 +1065,24 @@ function vInforme(){
       <div class="resumen">
         <div class="cap" style="opacity:.75">Conforme en terreno</div>
         <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Firmado por ${esc(ot.firmaTerreno.por||ot.contactoObra||'contacto en obra')}</div>
-        <div style="font-size:12px;opacity:.8">${esc(ot.firmaTerreno.fecha)}</div>
+        <div style="font-size:12px;opacity:.8">${esc(ot.firmaTerreno.fecha)}${ot.firmaTerreno.telefono?' · '+esc(ot.firmaTerreno.telefono):''}</div>
         ${ot.firmaTerreno.dataUrl ? `<img src="${ot.firmaTerreno.dataUrl}" style="background:#fff;margin-top:10px;max-height:70px">` : ''}
         <button class="btn btn-ghost" id="b-rehacer-firma-terreno" style="font-size:12px;margin-top:6px">Rehacer firma</button>
       </div>`
     : `
       <p class="sub" style="margin:0 0 8px">Si el contacto en obra queda conforme con lo levantado, puede firmar aquí mismo. No es obligatorio para pasar a cotización.</p>
-      <canvas id="firma-terreno-canvas"></canvas>
+      ${contactosTerreno.length ? `<label><span class="cap">Contacto ya registrado en el cliente</span>
+        <select class="input" id="ft-contacto-sel">
+          <option value="">— Escribir uno nuevo —</option>
+          ${contactosTerreno.map(s=> `<option value="${s.id}">${esc(s.encargado)} · ${esc(s.nombre)}</option>`).join('')}
+        </select></label>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:${contactosTerreno.length?'10px':'0'}">
+        <label><span class="cap">Nombre de quien firma</span><input class="input" id="ft-nombre" value="${esc(ot.contactoObra||'')}"></label>
+        <label><span class="cap">Teléfono</span><input class="input" id="ft-telefono" value="${esc(ot.contactoObraTelefono||'')}"></label>
+      </div>
+      ${ot.clienteId ? `<label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:10px 0 0">
+        <input type="checkbox" id="ft-guardar-contacto" ${ot.sucursalId?'checked':''}> Agregar/actualizar como contacto de la sucursal</label>` : ''}
+      <canvas id="firma-terreno-canvas" style="margin-top:10px"></canvas>
       <button class="btn btn-ghost" id="b-limpiar-firma-terreno" style="font-size:12px;margin-top:4px">Borrar firma</button>
       <button class="btn btn-secondary btn-block" id="b-firmar-terreno" style="font-size:13px">Firmar conformidad</button>`}
 
@@ -1057,17 +1100,34 @@ function vInforme(){
   };
   if(!ot.firmaTerreno.firmado){
     const pad = crearFirmaPad('firma-terreno-canvas', 'b-limpiar-firma-terreno');
+    const selContacto = $('#ft-contacto-sel');
+    if(selContacto) selContacto.onchange = e=>{
+      const suc = contactosTerreno.find(s=> s.id === e.target.value);
+      sucursalContactoElegida = suc ? suc.id : ot.sucursalId;
+      $('#ft-nombre').value = suc ? suc.encargado||'' : (ot.contactoObra||'');
+      $('#ft-telefono').value = suc ? suc.telefono||'' : (ot.contactoObraTelefono||'');
+    };
     if(pad) $('#b-firmar-terreno').onclick = ()=>{
+      const nombre = $('#ft-nombre').value.trim();
+      const telefono = $('#ft-telefono').value.trim();
+      if(!nombre){ toast('Escribe el nombre de quien firma.'); return; }
       if(pad.estaVacia()){ toast('Dibuje la firma antes de confirmar.'); return; }
-      ot.firmaTerreno = {firmado:true, por: ot.contactoObra || 'Contacto en obra',
+      ot.contactoObra = nombre; ot.contactoObraTelefono = telefono;
+      ot.firmaTerreno = {firmado:true, por: nombre, telefono,
         fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
         dataUrl: pad.dataUrl()};
+      const guardar = $('#ft-guardar-contacto');
+      if(guardar && guardar.checked && ot.clienteId){
+        const cli = db.clientes.find(c=> c.id === ot.clienteId);
+        const suc = cli && cli.sucursales.find(s=> s.id === sucursalContactoElegida);
+        if(suc){ suc.encargado = nombre; suc.telefono = telefono; marcarClientes(); }
+      }
       save(); render();
       toast('Conformidad en terreno registrada.');
     };
   } else {
     const rehacer = $('#b-rehacer-firma-terreno');
-    if(rehacer) rehacer.onclick = ()=>{ ot.firmaTerreno = {firmado:false, por:'', fecha:'', dataUrl:''}; save(); render(); };
+    if(rehacer) rehacer.onclick = ()=>{ ot.firmaTerreno = {firmado:false, por:'', telefono:'', fecha:'', dataUrl:''}; save(); render(); };
   }
   pintarFotosInforme(ot);
 }
@@ -1171,7 +1231,7 @@ function refrescarTotales(ot){
     const pu = ot.cot.pu[item.id] !== undefined ? num(ot.cot.pu[item.id]) : num(item.pu);
     el.textContent = money(cantidadItem(ot,item) * pu);
   });
-  const res = $('.resumen');
+  const res = $('#v-cotizacion .resumen');
   if(res){
     const rows = $$('.row span:last-child', res);
     if(rows[0]) rows[0].textContent = money(r.neto);
@@ -1420,6 +1480,9 @@ function vCliente(){
   const ot = getOT();
   if(!ot){ irA('clientes'); return; }
   const r = calcular(ot), c = conteos(ot);
+  const clienteAprob = ot.clienteId && db.clientes.find(x=> x.id===ot.clienteId);
+  const contactosCliente = clienteAprob ? clienteAprob.sucursales.filter(s=> s.encargado) : [];
+  let sucursalContactoElegidaCli = ot.sucursalId;
 
   $('#v-cliente').innerHTML = `
     <button class="btn btn-ghost btn-volver" id="b-otro-cliente">← Volver a ${esc(ot.cliente||'clientes')}</button>
@@ -1450,11 +1513,22 @@ function vCliente(){
       <div class="resumen" style="margin-top:15px">
         <div class="cap" style="opacity:.75">Aprobada</div>
         <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">${ot.firma.via==='correo' ? 'Aprobada por correo' : 'Firmada'} por ${esc(ot.firma.por||ot.cliente||'el cliente')}</div>
-        <div style="font-size:12px;opacity:.8">${esc(ot.firma.fecha)} · se genera OT de ejecución</div>
+        <div style="font-size:12px;opacity:.8">${esc(ot.firma.fecha)}${ot.firma.telefono?' · '+esc(ot.firma.telefono):''} · se genera OT de ejecución</div>
         ${ot.firma.dataUrl ? `<img src="${ot.firma.dataUrl}" style="background:#fff;margin-top:10px;max-height:80px">` : ''}
       </div>`
     : `
       <div class="sec"><span class="n">02</span><h3>Firma</h3><span class="rule"></span></div>
+      ${contactosCliente.length ? `<label><span class="cap">Contacto ya registrado en el cliente</span>
+        <select class="input" id="fc-contacto-sel">
+          <option value="">— Escribir uno nuevo —</option>
+          ${contactosCliente.map(s=> `<option value="${s.id}">${esc(s.encargado)} · ${esc(s.nombre)}</option>`).join('')}
+        </select></label>` : ''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:${contactosCliente.length?'10px':'0'}">
+        <label><span class="cap">Nombre de quien aprueba</span><input class="input" id="fc-nombre" value="${esc(ot.firma.por||ot.cliente||'')}"></label>
+        <label><span class="cap">Teléfono</span><input class="input" id="fc-telefono" value="${esc(ot.firma.telefono||'')}"></label>
+      </div>
+      ${ot.clienteId ? `<label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:10px 0">
+        <input type="checkbox" id="fc-guardar-contacto" ${ot.sucursalId?'checked':''}> Agregar/actualizar como contacto de la sucursal</label>` : ''}
       <div style="font-size:12px;opacity:.55;margin-bottom:6px">Firme aquí con el dedo</div>
       <canvas id="firma-canvas"></canvas>
       <button class="btn btn-ghost" id="b-limpiar-firma" style="font-size:12px;margin-top:4px">Borrar firma</button>
@@ -1607,19 +1681,42 @@ function crearFirmaPad(canvasId, limpiarId){
 
 function montarFirma(ot){
   const pad = crearFirmaPad('firma-canvas', 'b-limpiar-firma'); if(!pad) return;
+  const clienteFicha = ot.clienteId && db.clientes.find(c=> c.id === ot.clienteId);
+  const contactos = clienteFicha ? clienteFicha.sucursales.filter(s=> s.encargado) : [];
+  let sucursalElegida = ot.sucursalId;
+
+  const selContacto = $('#fc-contacto-sel');
+  if(selContacto) selContacto.onchange = e=>{
+    const suc = contactos.find(s=> s.id === e.target.value);
+    sucursalElegida = suc ? suc.id : ot.sucursalId;
+    $('#fc-nombre').value = suc ? suc.encargado||'' : (ot.cliente||'');
+    $('#fc-telefono').value = suc ? suc.telefono||'' : '';
+  };
+
+  const datosFirma = via=>{
+    const nombre = $('#fc-nombre').value.trim();
+    const telefono = $('#fc-telefono').value.trim();
+    const guardar = $('#fc-guardar-contacto');
+    if(guardar && guardar.checked && ot.clienteId){
+      const cli = db.clientes.find(c=> c.id === ot.clienteId);
+      const suc = cli && cli.sucursales.find(s=> s.id === sucursalElegida);
+      if(suc){ suc.encargado = nombre || suc.encargado; suc.telefono = telefono; marcarClientes(); }
+    }
+    return {firmado:true, por: nombre || ot.cliente || 'el cliente', telefono, via,
+      fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})};
+  };
+
   $('#b-firmar').onclick = ()=>{
+    if(!$('#fc-nombre').value.trim()){ toast('Escribe el nombre de quien aprueba.'); return; }
     if(pad.estaVacia()){ toast('Dibuje la firma antes de aprobar.'); return; }
-    ot.firma = {firmado:true, por: ot.cliente || 'el cliente', via:'firma',
-      fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-      dataUrl: pad.dataUrl()};
+    ot.firma = Object.assign(datosFirma('firma'), {dataUrl: pad.dataUrl()});
     ot.estado = 'aprobada';
     save(); render();
     toast('Cotización aprobada. Se abre OT de ejecución.');
   };
   $('#b-aprobar-correo').onclick = ()=>{
-    ot.firma = {firmado:true, por: ot.cliente || 'el cliente', via:'correo',
-      fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-      dataUrl:''};
+    if(!$('#fc-nombre').value.trim()){ toast('Escribe el nombre de quien aprueba.'); return; }
+    ot.firma = Object.assign(datosFirma('correo'), {dataUrl:''});
     ot.estado = 'aprobada';
     save(); render();
     toast('Cotización aprobada (por correo). Se abre OT de ejecución.');
@@ -1715,6 +1812,37 @@ function abrirSheet(tipo){
 }
 function cerrarSheet(){ const habia = S.sheet; S.sheet = null; $('#overlay').classList.remove('on'); if(habia) render(); }
 
+/** Lista desplegable del buscador de cliente/sucursal en "Datos de la OT". */
+function pintarOpcionesClienteOT(ot, texto){
+  const cont = $('#cliente-opciones'); if(!cont) return;
+  const q = texto.trim().toLowerCase();
+  const todas = opcionesClienteSucursal();
+  const filtradas = q ? todas.filter(o=> o.clienteNombre.toLowerCase().includes(q) || o.sucursalNombre.toLowerCase().includes(q)) : todas;
+  const items = filtradas.slice(0, 8).map(o=> `<button type="button" class="autocomplete-item" data-elegir="${o.clienteId}|${o.sucursalId}">
+      ${esc(o.clienteNombre)}<span class="s">${esc(o.sucursalNombre)}</span></button>`).join('');
+  const nuevo = q ? `<button type="button" class="autocomplete-item autocomplete-nuevo" id="b-cliente-nuevo-inline">+ Crear cliente nuevo: "${esc(texto.trim())}"</button>` : '';
+  if(!items && !nuevo){ cont.style.display = 'none'; return; }
+  cont.innerHTML = items + nuevo;
+  cont.style.display = 'block';
+  $$('[data-elegir]', cont).forEach(b=> b.onclick = ()=>{
+    const [cid, sid] = b.dataset.elegir.split('|');
+    const cliente = db.clientes.find(x=> x.id === cid);
+    const suc = cliente && cliente.sucursales.find(x=> x.id === sid);
+    if(!cliente || !suc) return;
+    ot.clienteId = cliente.id; ot.cliente = cliente.nombre; ot.sucursalId = suc.id;
+    if(suc.direccion) ot.direccion = suc.direccion;
+    if(suc.encargado && !ot.contactoObra) ot.contactoObra = suc.encargado;
+    if(suc.telefono && !ot.contactoObraTelefono) ot.contactoObraTelefono = suc.telefono;
+    save(); pintarSheet();
+  });
+  const btnNuevo = $('#b-cliente-nuevo-inline', cont);
+  if(btnNuevo) btnNuevo.onclick = ()=>{
+    clienteIncorporarDesdeOT = ot.id;
+    S.clienteNombre = texto.trim();
+    abrirSheet('incorporar-cliente');
+  };
+}
+
 function pintarSheet(){
   const ot = getOT(); const s = $('#sheet');
   const cab = (titulo, bajada)=> `<div class="sheet-h"><h3>${titulo}</h3>
@@ -1771,14 +1899,30 @@ function pintarSheet(){
   }
 
   if(S.sheet === 'datos'){
-    s.innerHTML = cab('Datos de la OT', 'Antecedentes que encabezan el informe y la cotización.') +
+    const sucAsignada = ot.clienteId && (db.clientes.find(c=> c.id===ot.clienteId)||{sucursales:[]}).sucursales.find(s=> s.id===ot.sucursalId);
+    s.innerHTML = cab('Datos de la OT', 'Antecedentes que encabezan el informe y la cotización. La OT debe quedar asignada a un cliente.') +
       `<div style="display:flex;flex-direction:column;gap:10px">
-        ${[['obra','Obra'],['cliente','Cliente'],['contactoObra','Contacto en obra (firma en terreno)'],
+        <label><span class="cap">Obra</span><input class="input" data-ot="obra" value="${esc(ot.obra||'')}"></label>
+
+        <label class="autocomplete-wrap"><span class="cap">Cliente${sucAsignada ? ' — ' + esc(sucAsignada.nombre) : ''}</span>
+          <input class="input" id="in-cliente-buscar" placeholder="Buscar cliente…" autocomplete="off" value="${esc(ot.cliente||'')}">
+          <div id="cliente-opciones" class="autocomplete-list" style="display:none"></div>
+        </label>
+
+        ${[['contactoObra','Contacto en obra (firma en terreno)'],['contactoObraTelefono','Teléfono del contacto en obra'],
            ['email','Email del cliente'],['direccion','Dirección'],
            ['comuna','Comuna'],['levantoPor','Levantó (nombre · cargo)'],['fechaVisita','Fecha de visita']].map(([k,l])=>
           `<label><span class="cap">${l}</span><input class="input" data-ot="${k}" ${k==='fechaVisita'?'type="date"':''} value="${esc(ot[k]||'')}"></label>`).join('')}
       </div>`;
     $$('[data-ot]').forEach(inp=> inp.oninput = ()=>{ ot[inp.dataset.ot] = inp.value; save(); });
+
+    const buscador = $('#in-cliente-buscar');
+    buscador.oninput = ()=>{
+      ot.cliente = buscador.value; ot.clienteId = null; ot.sucursalId = null;
+      save(); pintarOpcionesClienteOT(ot, buscador.value);
+    };
+    buscador.onfocus = ()=> pintarOpcionesClienteOT(ot, buscador.value);
+    buscador.onblur = ()=> setTimeout(()=>{ const c = $('#cliente-opciones'); if(c) c.style.display='none'; }, 150);
   }
 
   if(S.sheet === 'precios'){
@@ -1872,7 +2016,23 @@ function pintarSheet(){
       else { cliente = {id:uid(), nombre, sucursales:[sucursal]}; db.clientes.push(cliente); }
       // Legacy: sumar las OT sueltas con este nombre a la nueva ficha.
       db.ots.forEach(o=>{ if(!o.clienteId && o.cliente && o.cliente.toLowerCase()===nombre.toLowerCase()) o.clienteId = cliente.id; });
-      marcarClientes(); cerrarSheet();
+      marcarClientes();
+      if(clienteIncorporarDesdeOT){
+        const otOrigen = db.ots.find(o=> o.id === clienteIncorporarDesdeOT);
+        clienteIncorporarDesdeOT = null;
+        if(otOrigen){
+          otOrigen.clienteId = cliente.id; otOrigen.cliente = cliente.nombre; otOrigen.sucursalId = sucursal.id;
+          if(sucursal.direccion) otOrigen.direccion = sucursal.direccion;
+          if(sucursal.encargado && !otOrigen.contactoObra) otOrigen.contactoObra = sucursal.encargado;
+          if(sucursal.telefono && !otOrigen.contactoObraTelefono) otOrigen.contactoObraTelefono = sucursal.telefono;
+          save();
+        }
+        S.clienteNombre = null;
+        abrirSheet('datos');
+        toast('Cliente incorporado y asignado a la OT.');
+        return;
+      }
+      cerrarSheet();
       S.clienteId = cliente.id; S.clienteNombre = null;
       irA('cliente-detalle');
       toast('Cliente incorporado.');
@@ -1996,7 +2156,7 @@ function pintarSheet(){
         marcarClientes();
       } else if(cliente){
         nueva.cliente = cliente.nombre; nueva.clienteId = cliente.id;
-        if(sucursal){ nueva.sucursalId = sucursal.id; nueva.direccion = sucursal.direccion; nueva.contactoObra = sucursal.encargado; }
+        if(sucursal){ nueva.sucursalId = sucursal.id; nueva.direccion = sucursal.direccion; nueva.contactoObra = sucursal.encargado; nueva.contactoObraTelefono = sucursal.telefono; }
       }
       db.ots.push(nueva); S.otId = nueva.id;
       save(); cerrarSheet();
