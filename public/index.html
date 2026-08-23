@@ -661,6 +661,16 @@ function programarSync(){
   clearTimeout(NUBE.timer);
   NUBE.timer = setTimeout(()=> sincronizar(), 2500);
 }
+/** Para acciones críticas y de una sola vez (firmas, guardar cotización,
+ *  eliminar OT): no hay que esperar el debounce de 2.5s — si alguien firma
+ *  y cierra la pestaña de inmediato, ese cambio podía quedar solo en su
+ *  equipo sin llegar nunca a la nube. Se intenta subir al toque, y si
+ *  igual queda pendiente (sin señal, o un problema del servidor) se avisa. */
+async function sincronizarYa(avisoSiPendiente){
+  clearTimeout(NUBE.timer);
+  await sincronizar(false);
+  if(avisoSiPendiente && NUBE.disponible && NUBE.token && hayPendientes()) toast(avisoSiPendiente);
+}
 async function sincronizar(manual=false){
   if(!NUBE.disponible){ setNube('local'); return; }
   if(!NUBE.token){ setNube('sinsesion'); return; }
@@ -681,7 +691,15 @@ async function sincronizar(manual=false){
       normalizarOT(r);
       const local = db.ots.find(o=> o.id === r.id);
       if(!local){ r.dirty = false; db.ots.push(r); cambios = true; }
-      else if(!local.dirty && (r.updatedAt||0) > (local.updatedAt||0)){ Object.assign(local, r, {dirty:false}); cambios = true; }
+      else if(!local.dirty && (r.updatedAt||0) > (local.updatedAt||0)){
+        // Firmar es un hecho consumado: si ya está firmado localmente y la
+        // copia remota (más nueva por reloj, pero de una edición vieja que
+        // recién llegó) no lo trae, no se pisa la firma.
+        if(local.firma && local.firma.firmado && !(r.firma && r.firma.firmado)) r.firma = local.firma;
+        if(local.firmaTerreno && local.firmaTerreno.firmado && !(r.firmaTerreno && r.firmaTerreno.firmado)) r.firmaTerreno = local.firmaTerreno;
+        Object.assign(local, r, {dirty:false});
+        cambios = true;
+      }
     }
     // Dos equipos sin señal pueden emitir el mismo correlativo: se resuelve al sincronizar.
     const nDe = (cod, pre)=>{ const m = String(cod||'').match(new RegExp('^'+pre+'-(\\d+)')); return m ? +m[1] : 0; };
@@ -931,6 +949,7 @@ function vTerreno(){
     registrarHistorial('Eliminó una OT', `${ot.codigo}${ot.obra?' · '+ot.obra:''} (${aviso})`);
     irA('visitas');
     toast('OT eliminada.');
+    await sincronizarYa('OT eliminada en este equipo, pero no se pudo avisar a la nube. No cierres hasta que sincronice.');
   };
   $('#b-gps').onclick = ()=>{
     if(!navigator.geolocation){ toast('Este equipo no entrega GPS.'); return; }
@@ -1151,7 +1170,7 @@ function vInforme(){
       $('#ft-nombre').value = suc ? suc.encargado||'' : (ot.contactoObra||'');
       $('#ft-telefono').value = suc ? suc.telefono||'' : (ot.contactoObraTelefono||'');
     };
-    if(pad) $('#b-firmar-terreno').onclick = ()=>{
+    if(pad) $('#b-firmar-terreno').onclick = async ()=>{
       const nombre = $('#ft-nombre').value.trim();
       const telefono = $('#ft-telefono').value.trim();
       if(!nombre){ toast('Escribe el nombre de quien firma.'); return; }
@@ -1170,6 +1189,7 @@ function vInforme(){
       registrarHistorial('Firmó conformidad en terreno', `${ot.codigo} · ${nombre}`);
       render();
       toast('Conformidad en terreno registrada.');
+      await sincronizarYa('Firma guardada en este equipo, pero no se pudo subir a la nube. No cierres hasta que sincronice.');
     };
   } else {
     const rehacer = $('#b-rehacer-firma-terreno');
@@ -1289,13 +1309,14 @@ function vCotizacion(){
       ot.cot.utilidadPct = num(e.target.value)/100;
       save(); refrescarTotales(ot);
     };
-    $('#b-guardar-cot').onclick = ()=>{
+    $('#b-guardar-cot').onclick = async ()=>{
       if(ot.estado === 'en_terreno') ot.estado = 'cotizado';
       S.cotEditando = null;
       save();
       registrarHistorial('Guardó una cotización', `${ot.codigo} · ${ot.cot.numero} · ${money(calcular(ot).total)}`);
       setRol('cliente');
       toast('Cotización guardada.');
+      await sincronizarYa('Cotización guardada en este equipo, pero no se pudo subir a la nube. No cierres hasta que sincronice.');
     };
   } else {
     $('#b-editar-cot').onclick = ()=>{ S.cotEditando = ot.id; render(); };
@@ -1796,7 +1817,7 @@ function montarFirma(ot){
       fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})};
   };
 
-  $('#b-firmar').onclick = ()=>{
+  $('#b-firmar').onclick = async ()=>{
     if(!$('#fc-nombre').value.trim()){ toast('Escribe el nombre de quien aprueba.'); return; }
     if(pad.estaVacia()){ toast('Dibuje la firma antes de aprobar.'); return; }
     ot.firma = Object.assign(datosFirma('firma'), {dataUrl: pad.dataUrl()});
@@ -1805,8 +1826,9 @@ function montarFirma(ot){
     registrarHistorial('Cliente aprobó la cotización (con firma)', `${ot.codigo} · ${ot.firma.por}`);
     render();
     toast('Cotización aprobada. Se abre OT de ejecución.');
+    await sincronizarYa('Firma guardada en este equipo, pero no se pudo subir a la nube. No cierres hasta que sincronice.');
   };
-  $('#b-aprobar-correo').onclick = ()=>{
+  $('#b-aprobar-correo').onclick = async ()=>{
     if(!$('#fc-nombre').value.trim()){ toast('Escribe el nombre de quien aprueba.'); return; }
     ot.firma = Object.assign(datosFirma('correo'), {dataUrl:''});
     ot.estado = 'aprobada';
@@ -1814,6 +1836,7 @@ function montarFirma(ot){
     registrarHistorial('Cliente aprobó la cotización (por correo)', `${ot.codigo} · ${ot.firma.por}`);
     render();
     toast('Cotización aprobada (por correo). Se abre OT de ejecución.');
+    await sincronizarYa('Aprobación guardada en este equipo, pero no se pudo subir a la nube. No cierres hasta que sincronice.');
   };
   $('#b-cambios').onclick = ()=> toast('Observación enviada a la oficina técnica.');
 }
