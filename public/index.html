@@ -322,7 +322,7 @@ const ESTADO_LABEL = {agendada:['Agendada','tag-neutral'], en_terreno:['En terre
 /* ═══════════ ESTADO ═══════════ */
 let db = {ots:[], catalogo:[], clientes:[], params:{}, empresa:{}, seqOT:2451, seqCT:100,
           borrados:[], fotosSubidas:{}, ajustesTs:0, clientesTs:0};
-let S = {rol:'terreno', view:'visitas', otId:null, clienteId:null, clienteNombre:null, areaIdx:0, sheet:null, volverA:null};
+let S = {rol:'terreno', view:'visitas', otId:null, clienteId:null, clienteNombre:null, areaIdx:0, sheet:null, volverA:null, cotEditando:null};
 let agendaSel = {clienteId:'', sucursalId:'', nuevo:false};
 /** OT a la que hay que volver a asignar el cliente recién creado, cuando
  *  "Datos de la OT" mandó a Incorporar cliente por no encontrarlo. */
@@ -1153,15 +1153,13 @@ function vCotizacion(){
   if(!ot.cot.numero) ot.cot.numero = 'CT-' + (db.seqCT++) + '/' + String(new Date().getFullYear()).slice(2);
   const r = calcular(ot);
   const todas = todosItems(ot);
+  // Editable mientras no se ha guardado nunca (en_terreno); una vez guardada
+  // queda de solo lectura hasta que se apriete "Editar", para que nadie
+  // cambie precios sin darse cuenta después de haberla dejado lista.
+  const editable = ot.estado === 'en_terreno' || S.cotEditando === ot.id;
 
-  $('#v-cotizacion').innerHTML = `
-    <button class="btn btn-ghost btn-volver" id="b-volver-informe">← Volver al informe</button>
-    <div class="kick">Cotización ${esc(ot.cot.numero)} · tarifa ${esc(db.params.tarifa)}</div>
-    <h2>${esc(ot.obra || 'Obra sin nombre')}</h2>
-    <p class="sub" style="font-size:12px">Cantidades traídas del levantamiento. Ajusta precio unitario o desmarca partidas.</p>
-
-    <div class="list-grid" style="display:flex;flex-direction:column;gap:11px">
-      ${todas.length ? todas.map(({item, recinto})=>{
+  const lineasHTML = editable
+    ? (todas.length ? todas.map(({item, recinto})=>{
         const inc = !ot.cot.excluidas[item.id];
         const cant = cantidadItem(ot, item);
         const pu = ot.cot.pu[item.id] !== undefined ? num(ot.cot.pu[item.id]) : num(item.pu);
@@ -1184,15 +1182,32 @@ function vCotizacion(){
             </div>
           </div>
         </div>`;
-      }).join('') : '<p class="sub">No hay partidas levantadas todavía.</p>'}
-    </div>
+      }).join('') : '<p class="sub">No hay partidas levantadas todavía.</p>')
+    : (r.lineas.length ? r.lineas.map(l=> `<div class="card" style="padding:11px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="min-width:0">
+          <div style="font-size:9.5px;text-transform:uppercase;opacity:.55;letter-spacing:.06em">${esc(l.recinto.nombre)} · ${esc(l.item.code)}</div>
+          <div class="card-title" style="font-size:15px">${esc(l.item.desc)}</div>
+          <div style="font-size:11px;opacity:.6">${qty(l.cantidad)} ${esc(UNIDADES[l.item.unidad]||l.item.unidad)} · ${money(l.pu)} c/u</div>
+        </div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:15px;white-space:nowrap">${money(l.total)}</div>
+      </div>`).join('') : '<p class="sub">No hay partidas incluidas.</p>');
+
+  $('#v-cotizacion').innerHTML = `
+    <button class="btn btn-ghost btn-volver" id="b-volver-informe">← Volver al informe</button>
+    <div class="kick">Cotización ${esc(ot.cot.numero)} · tarifa ${esc(db.params.tarifa)}</div>
+    <h2>${esc(ot.obra || 'Obra sin nombre')}</h2>
+    <p class="sub" style="font-size:12px">${editable ? 'Cantidades traídas del levantamiento. Ajusta precio unitario o desmarca partidas.' : 'Cotización guardada. Para cambiar algo, primero apriétale Editar.'}</p>
+
+    <div class="list-grid" style="display:flex;flex-direction:column;gap:11px">${lineasHTML}</div>
 
     <div class="resumen" style="margin-top:15px">
       <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.75;margin-bottom:8px">Resumen económico</div>
       <div class="row"><span>Neto partidas</span><span>${money(r.neto)}</span></div>
       <div class="row"><span>Gastos generales ${Math.round(db.params.gg*100)}%</span><span>${money(r.gg)}</span></div>
       <div class="row" style="align-items:center">
-        <span>Utilidad <input class="input" id="in-utilidad" inputmode="decimal" style="width:52px;display:inline-block;padding:2px 6px;font-size:12px;text-align:right" value="${fmtPct(r.utilidadPct)}">%</span>
+        ${editable
+          ? `<span>Utilidad <input class="input" id="in-utilidad" inputmode="decimal" style="width:52px;display:inline-block;padding:2px 6px;font-size:12px;text-align:right" value="${fmtPct(r.utilidadPct)}">%</span>`
+          : `<span>Utilidad ${fmtPct(r.utilidadPct)}%</span>`}
         <span>${money(r.utilidad)}</span>
       </div>
       <div class="row"><span>IVA ${Math.round(db.params.iva*100)}%</span><span>${money(r.iva)}</span></div>
@@ -1201,32 +1216,48 @@ function vCotizacion(){
         <span class="tot-l">Total con IVA</span><span class="tot-v">${money(r.total)}</span></div>
     </div>
 
-    <button class="btn btn-primary btn-block blueprint" id="b-enviar" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:12px">${corners}ENVIAR</button>
+    ${editable
+      ? `<button class="btn btn-primary btn-block blueprint" id="b-guardar-cot" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:12px">${corners}GUARDAR</button>`
+      : `<div class="blueprint" style="padding:10px 14px;margin-top:12px;display:flex;align-items:center;gap:10px">${corners}
+          <span style="flex:1;font-size:12px;opacity:.75">Cotización guardada.</span>
+          <button class="btn btn-secondary" id="b-editar-cot" style="font-size:12px">Editar</button>
+        </div>`}
     <button class="btn btn-secondary btn-block" id="b-pdf" style="font-size:13px">Descargar PDF combinado</button>
     <button class="btn btn-secondary btn-block" id="b-xls" style="font-size:13px">Exportar Excel</button>`;
 
-  $$('[data-inc]').forEach(b=> b.onclick = ()=>{
-    if(ot.cot.excluidas[b.dataset.inc]) delete ot.cot.excluidas[b.dataset.inc];
-    else ot.cot.excluidas[b.dataset.inc] = true;
-    save(); render();
-  });
-  $$('[data-pu]').forEach(inp=> inp.oninput = ()=>{
-    inp.value = inp.value.replace(/[^\d]/g,'');
-    ot.cot.pu[inp.dataset.pu] = num(inp.value);
-    save(); refrescarTotales(ot);
-  });
-  $$('[data-cant]').forEach(inp=> inp.oninput = ()=>{
-    ot.cot.qty[inp.dataset.cant] = inp.value;
-    save(); refrescarTotales(ot);
-  });
   $('#b-volver-informe').onclick = ()=> irA('informe');
-  $('#in-utilidad').oninput = e=>{
-    ot.cot.utilidadPct = num(e.target.value)/100;
-    save(); refrescarTotales(ot);
-  };
-  $('#b-enviar').onclick = ()=> abrirSheet('enviar');
   $('#b-pdf').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCombinado(ot), 60); };
   $('#b-xls').onclick = ()=> exportarExcel(ot);
+
+  if(editable){
+    $$('[data-inc]').forEach(b=> b.onclick = ()=>{
+      if(ot.cot.excluidas[b.dataset.inc]) delete ot.cot.excluidas[b.dataset.inc];
+      else ot.cot.excluidas[b.dataset.inc] = true;
+      save(); render();
+    });
+    $$('[data-pu]').forEach(inp=> inp.oninput = ()=>{
+      inp.value = inp.value.replace(/[^\d]/g,'');
+      ot.cot.pu[inp.dataset.pu] = num(inp.value);
+      save(); refrescarTotales(ot);
+    });
+    $$('[data-cant]').forEach(inp=> inp.oninput = ()=>{
+      ot.cot.qty[inp.dataset.cant] = inp.value;
+      save(); refrescarTotales(ot);
+    });
+    $('#in-utilidad').oninput = e=>{
+      ot.cot.utilidadPct = num(e.target.value)/100;
+      save(); refrescarTotales(ot);
+    };
+    $('#b-guardar-cot').onclick = ()=>{
+      if(ot.estado === 'en_terreno') ot.estado = 'cotizado';
+      S.cotEditando = null;
+      save();
+      setRol('cliente');
+      toast('Cotización guardada.');
+    };
+  } else {
+    $('#b-editar-cot').onclick = ()=>{ S.cotEditando = ot.id; render(); };
+  }
 }
 function refrescarTotales(ot){
   const r = calcular(ot);
@@ -1769,12 +1800,12 @@ function vTutorial(){
     ${paso('04','La cotización', `
       <div class="card" style="padding:11px;margin-bottom:10px">
         <p style="margin:0;font-size:12.5px">Desde el informe, <strong>Pasar a cotización</strong> lleva al rol Oficina. Ahí se ajusta el <strong>precio unitario</strong> de cada partida, se puede desmarcar una línea, y se define la <strong>utilidad de ese proyecto</strong> (cada cotización tiene la suya, no es un valor único para toda la empresa). Gastos generales e IVA usan los parámetros generales de Configuración.</p>
-        <p style="margin:8px 0 0;font-size:12.5px">Con <strong>Enviar</strong> se genera el PDF combinado (informe + cotización) y la OT queda disponible para el cliente.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">Con <strong>Guardar</strong> la cotización queda lista, la OT pasa a "Cotizado" y se vuelve al Home de Clientes — nada se envía todavía. Una vez guardada, la cotización queda de solo lectura: para corregir algo hay que apretar <strong>Editar</strong> primero.</p>
       </div>`)}
 
     ${paso('05','La aprobación del cliente', `
       <div class="card" style="padding:11px;margin-bottom:10px">
-        <p style="margin:0;font-size:12.5px">En <strong>Clientes</strong> se busca al cliente, se entra a su ficha y se abre la cotización enviada. El cliente puede <strong>firmar con el dedo</strong> en la pantalla, o bien <strong>aprobar sin firma</strong> cuando la aprobación llegó por correo — es la forma más común, porque la mayoría de las propuestas se revisan y aprueban por ese medio. Cualquiera de las dos deja la OT como <strong>Aprobada</strong>.</p>
+        <p style="margin:0;font-size:12.5px">En <strong>Clientes</strong> se busca al cliente, se entra a su ficha y se abre la cotización guardada — ahí se descarga el PDF combinado para enviarlo por el medio que corresponda. El cliente puede <strong>firmar con el dedo</strong> en la pantalla, o bien <strong>aprobar sin firma</strong> cuando la aprobación llegó por correo — es la forma más común, porque la mayoría de las propuestas se revisan y aprueban por ese medio. Cualquiera de las dos deja la OT como <strong>Aprobada</strong>.</p>
       </div>`)}
 
     ${paso('06','El directorio de clientes', `
@@ -1947,26 +1978,6 @@ function pintarSheet(){
       c.pu = num(inp.value.replace(/[^\d]/g,''));
       marcarAjustes();
     });
-  }
-
-  if(S.sheet === 'enviar'){
-    const r = calcular(ot);
-    s.innerHTML = cab('Enviar al cliente', 'Un solo PDF: informe técnico y cotización.') +
-      `<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px">
-        <span style="opacity:.55">Para</span><span>${esc(ot.cliente||'—')}${ot.email?' · '+esc(ot.email):''}</span>
-        <span style="opacity:.55">Adjunto</span><span>Informe + cotización ${esc(ot.cot.numero||'')} (1 PDF)</span>
-        <span style="opacity:.55">Monto</span><span style="font-family:var(--font-heading);font-weight:600;font-size:15px">${money(r.total)} IVA incl.</span>
-      </div>
-      <button class="btn btn-primary btn-block blueprint" id="b-enviar-ok" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:14px">${corners}ENVIAR PARA APROBACIÓN</button>`;
-    $('#b-enviar-ok').onclick = ()=>{
-      if(ot.estado === 'en_terreno') ot.estado = 'cotizado';
-      save(); cerrarSheet();
-      pdfCombinado(ot);
-      S.rol = 'cliente';
-      $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol === 'cliente'));
-      irA('cliente');
-      toast('Enviado. El cliente recibe el PDF para revisar y aprobar.');
-    };
   }
 
   if(S.sheet === 'catalogo-import'){
