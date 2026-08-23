@@ -805,7 +805,8 @@ function vTerreno(){
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-secondary" id="b-gps" style="flex:1;font-size:12px">Registrar GPS</button>
       <button class="btn btn-secondary" id="b-datos" style="flex:1;font-size:12px">Datos de la OT</button>
-    </div>`;
+    </div>
+    <button class="btn btn-ghost btn-block" id="b-eliminar-ot" style="font-size:12px;margin-top:10px;color:var(--color-accent-700)">Eliminar OT</button>`;
 
   $('#b-volver-visitas').onclick = ()=> irA('visitas');
   $$('[data-f]', $('#v-terreno')).forEach(el=>{
@@ -839,6 +840,20 @@ function vTerreno(){
   $('#b-condiciones').onclick = ()=> abrirSheet('checklist');
   $('#b-datos').onclick = ()=> abrirSheet('datos');
   $('#b-informe').onclick = ()=> irA('informe');
+  $('#b-eliminar-ot').onclick = async ()=>{
+    const aviso = `${c.partidas} partida${c.partidas===1?'':'s'} y ${c.fotos} foto${c.fotos===1?'':'s'}`;
+    if(!confirm(`¿Eliminar "${ot.obra || ot.codigo}"? Se pierde ${aviso}. Esta acción no se puede deshacer.`)) return;
+    for(const f of (ot.fotos||[])){
+      await photoDel(f.id);
+      if(db.fotosSubidas[f.id]){ delete db.fotosSubidas[f.id]; api('fotos/'+f.id,{method:'DELETE'}).catch(()=>{}); }
+    }
+    db.ots = db.ots.filter(o=> o.id !== ot.id);
+    if(!db.borrados.includes(ot.id)) db.borrados.push(ot.id);
+    S.otId = null;
+    saveLocal(); programarSync();
+    irA('visitas');
+    toast('OT eliminada.');
+  };
   $('#b-gps').onclick = ()=>{
     if(!navigator.geolocation){ toast('Este equipo no entrega GPS.'); return; }
     toast('Buscando señal GPS…');
