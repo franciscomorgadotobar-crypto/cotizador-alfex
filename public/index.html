@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#3e3f42">
 <title>ALFEX · Levantamiento</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2185,6 +2186,25 @@ function pintarSheet(){
 }
 
 /* ═══════════ PDF COMBINADO (informe + cotización) ═══════════ */
+let logoDataUrlCache;
+/** El logo se sirve como archivo estático; se trae una sola vez y se cachea
+ *  en base64 para poder incrustarlo en el PDF con jsPDF. */
+async function cargarLogoDataUrl(){
+  if(logoDataUrlCache !== undefined) return logoDataUrlCache;
+  try{
+    const res = await fetch('logo-alfex.png');
+    if(!res.ok) throw new Error('sin logo');
+    const blob = await res.blob();
+    logoDataUrlCache = await new Promise((resolve,reject)=>{
+      const fr = new FileReader();
+      fr.onload = ()=> resolve(fr.result);
+      fr.onerror = ()=> reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  }catch(e){ logoDataUrlCache = null; }
+  return logoDataUrlCache;
+}
+
 async function pdfCombinado(ot){
   if(!window.jspdf){ toast('Necesitas conexión para generar el PDF.'); return; }
   const {jsPDF} = window.jspdf;
@@ -2192,12 +2212,22 @@ async function pdfCombinado(ot){
   const M = 16, R = 194;
   const e = db.empresa, r = calcular(ot), c = conteos(ot);
   const naranjo = [226,101,28], grafito = [62,63,66], tinta = [29,31,32];
+  const logo = await cargarLogoDataUrl();
   let y = 0;
 
   const encabezado = (titulo)=>{
-    doc.setFillColor(...naranjo); doc.rect(M, 14, 7, 7, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...tinta);
-    doc.text('ALFEX', M+10, 20);
+    if(logo){
+      const alto = 8.5, ancho = alto * (600/222);
+      try{ doc.addImage(logo, 'PNG', M, 11, ancho, alto); }catch(err){
+        doc.setFillColor(...naranjo); doc.rect(M, 14, 7, 7, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...tinta);
+        doc.text('ALFEX', M+10, 20);
+      }
+    } else {
+      doc.setFillColor(...naranjo); doc.rect(M, 14, 7, 7, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...tinta);
+      doc.text('ALFEX', M+10, 20);
+    }
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,120,124);
     doc.text([e.web, e.email, e.fono].filter(Boolean).join(' · '), R, 17, {align:'right'});
     doc.text(e.rubro || 'Obras civiles', R, 20.5, {align:'right'});
