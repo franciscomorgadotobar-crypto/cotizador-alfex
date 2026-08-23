@@ -189,6 +189,21 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
+    // --- clientes: directorio compartido (nombre + sucursales) ---
+    if (recurso === "clientes") {
+      const s = store("alfex-clientes");
+
+      if (metodo === "GET") {
+        const c = await s.get("clientes", { type: "json" });
+        return json(c ?? null);
+      }
+      if (metodo === "PUT") {
+        const cuerpo = await req.json();
+        await s.setJSON("clientes", cuerpo);
+        return json({ ok: true });
+      }
+    }
+
     return json({ error: "Ruta no encontrada." }, 404);
   } catch (e) {
     return json({ error: "Error en el servidor: " + (e as Error).message }, 500);

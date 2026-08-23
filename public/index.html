@@ -118,6 +118,11 @@ header.top{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;
 .netchip i{width:7px;height:7px;background:var(--color-neutral-600);display:block;}
 .netchip.on i{background:var(--color-accent);}
 .netchip.warn i{background:var(--color-accent-400);}
+.iconbtn{width:36px;height:36px;min-height:36px;padding:0;display:inline-flex;align-items:center;
+  justify-content:center;border:1px solid var(--color-divider);background:transparent;cursor:pointer;
+  flex:none;color:var(--color-text);}
+.iconbtn:hover{background:color-mix(in srgb, var(--color-text) 7%, transparent);}
+.btn-volver{font-size:12px;margin-bottom:8px;padding-inline:0;}
 
 nav.roles{display:flex;border-bottom:1px solid var(--color-divider);flex:none;}
 nav.roles button{flex:1;font-family:var(--font-heading);font-weight:600;font-size:10.5px;
@@ -230,13 +235,16 @@ h2{font-size:26px;} .h2big{font-size:29px;}
       <div class="wordmark">ALF<span class="ex">EX</span></div>
       <div class="bajada">Obras civiles · Levantamiento</div>
     </div>
+    <button class="iconbtn" id="btn-config" title="Configuración">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
     <button class="netchip" id="netchip" title="Estado de sincronización"><i></i><span>Sin red</span></button>
   </header>
 
   <nav class="roles">
     <button data-rol="terreno" class="on">Terreno</button>
     <button data-rol="oficina">Oficina</button>
-    <button data-rol="cliente">Cliente</button>
+    <button data-rol="cliente">Clientes</button>
     <button data-rol="tutorial">Tutorial</button>
   </nav>
 
@@ -247,7 +255,9 @@ h2{font-size:26px;} .h2big{font-size:29px;}
     <section class="view" id="v-cotizacion"></section>
     <section class="view" id="v-oficina"></section>
     <section class="view" id="v-clientes"></section>
+    <section class="view" id="v-cliente-detalle"></section>
     <section class="view" id="v-cliente"></section>
+    <section class="view" id="v-config"></section>
     <section class="view" id="v-tutorial"></section>
   </main>
 
@@ -285,19 +295,24 @@ const CHECKLIST_BASE = [
   {key:'agua',    label:'Punto de agua para faena'},
   {key:'altura',  label:'Trabajo en altura > 2 m (requiere andamio)'},
   {key:'humedad', label:'Humedad activa / filtración visible'},
-  {key:'horario', label:'Restricción de horario del mandante'}
+  {key:'horario', label:'Restricción de horario del cliente'}
 ];
 
-const PARAMS_BASE = {gg:0.12, utilidad:0.08, iva:0.19, validezDias:15, plazoDias:12, tarifa:'sept 2025'};
-const EMPRESA_BASE = {nombre:'ALFEX SPA', web:'www.alfex.cl', email:'contacto@alfex.cl',
+/* gg e iva son politica de la empresa; utilidadDefault solo sugiere el valor
+   inicial de un proyecto nuevo — cada cotizacion fija la suya despues. */
+const PARAMS_BASE = {gg:0.12, utilidadDefault:0.08, iva:0.19, validezDias:15, plazoDias:12, tarifa:'sept 2025'};
+const EMPRESA_BASE = {nombre:'ALFEX SPA', rut:'', direccion:'', web:'www.alfex.cl', email:'contacto@alfex.cl',
                       fono:'+56 9529 0514', fono2:'+56 9 3503 7653', rubro:'Obras civiles'};
 
 const LS_KEY = 'alfex_lt_v2';
+const ESTADO_LABEL = {agendada:['Agendada','tag-neutral'], en_terreno:['En terreno','tag-accent'],
+                       cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
 
 /* ═══════════ ESTADO ═══════════ */
-let db = {ots:[], catalogo:[], params:{}, empresa:{}, seqOT:2451, seqCT:100,
-          borrados:[], fotosSubidas:{}, ajustesTs:0};
-let S = {rol:'terreno', view:'visitas', otId:null, areaIdx:0, sheet:null};
+let db = {ots:[], catalogo:[], clientes:[], params:{}, empresa:{}, seqOT:2451, seqCT:100,
+          borrados:[], fotosSubidas:{}, ajustesTs:0, clientesTs:0};
+let S = {rol:'terreno', view:'visitas', otId:null, clienteId:null, clienteNombre:null, areaIdx:0, sheet:null, volverA:null};
+let agendaSel = {clienteId:'', sucursalId:'', nuevo:false};
 const photoCache = new Map();
 
 /* ═══════════ UTILIDADES ═══════════ */
@@ -308,6 +323,10 @@ const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'
 const num = v => { const n = parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(n)?n:0; };
 const money = n => '$' + Math.round(isFinite(n)?n:0).toLocaleString('es-CL');
 const qty = n => (isFinite(n)?n:0).toLocaleString('es-CL', {maximumFractionDigits:2});
+const fmtPct = p => { const v = (isFinite(p)?p:0)*100; return Number.isInteger(v) ? String(v) : v.toFixed(1); };
+/** CSV simple: sin comillas con comas internas — suficiente para listas propias. */
+const parseCSV = texto => texto.split(/\r?\n/).map(l=> l.trim()).filter(Boolean)
+  .map(l=> l.split(',').map(c=> c.trim().replace(/^"|"$/g,'')));
 const hoyISO = ()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
 function fechaCorta(iso){
   if(!iso) return '—';
@@ -338,6 +357,7 @@ function save(){
   saveLocal(); programarSync();
 }
 function marcarAjustes(){ db.ajustesTs = Date.now(); saveLocal(); programarSync(); }
+function marcarClientes(){ db.clientesTs = Date.now(); saveLocal(); programarSync(); }
 
 function loadDB(){
   let raw=null;
@@ -354,7 +374,9 @@ function loadDB(){
   if(!db.fotosSubidas || typeof db.fotosSubidas!=='object') db.fotosSubidas = {};
   if(!db.ajustesTs) db.ajustesTs = 0;
   // Datos de la version anterior: se convierten al modelo del diseno.
-  db.ots = db.ots.map(o=> (o && !o.recintos && Array.isArray(o.partidas)) ? migrarV1(o) : o).filter(Boolean);
+  db.ots = db.ots.map(o=> (o && !o.recintos && Array.isArray(o.partidas)) ? migrarV1(o) : o).filter(Boolean).map(normalizarOT);
+  if(!Array.isArray(db.clientes)) db.clientes = [];
+  if(!db.clientesTs) db.clientesTs = 0;
 }
 
 /* ── Fotos: IndexedDB local + nube ── */
@@ -435,13 +457,15 @@ function nuevaOT(){
   return {
     id: uid(),
     codigo: 'OT-' + (db.seqOT++),
-    obra:'', mandante:'', email:'', direccion:'', comuna:'', gps:null,
+    obra:'', cliente:'', clienteId:null, sucursalId:null, contactoObra:'', email:'', direccion:'', comuna:'', gps:null,
     fechaVisita: hoyISO(), levantoPor: (typeof NUBE!=='undefined' && NUBE.nombre) || '', estado:'en_terreno',
+    agenda: null,
     checks,
     recintos: [{id:uid(), nombre:'Recinto 1', items:[]}],
     fotos: [],
-    cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas:'', plazoDias: db.params.plazoDias},
-    firma: {firmado:false, por:'', fecha:'', dataUrl:''},
+    cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas:'', plazoDias: db.params.plazoDias, utilidadPct: db.params.utilidadDefault},
+    firmaTerreno: {firmado:false, por:'', fecha:'', dataUrl:''},
+    firma: {firmado:false, por:'', fecha:'', dataUrl:'', via:''},
     createdAt: Date.now(), updatedAt: Date.now(), dirty:true
   };
 }
@@ -469,15 +493,34 @@ function migrarV1(v){
   if(v.acceso) checks.acceso = {on:true, valor: v.acceso.slice(0,60)};
   return {
     id: v.id, codigo: v.folio || ('OT-' + (db.seqOT++)),
-    obra: v.obra||'', mandante: (v.cliente&&v.cliente.nombre)||'', email:(v.cliente&&v.cliente.email)||'',
+    obra: v.obra||'', cliente: (v.cliente&&v.cliente.nombre)||'', clienteId:null, sucursalId:null,
+    contactoObra: (v.cliente&&v.cliente.contacto)||'', email:(v.cliente&&v.cliente.email)||'',
     direccion: v.direccion||'', comuna: v.comuna||'', gps: v.gps||null,
-    fechaVisita: v.fecha || hoyISO(), levantoPor: v.responsable||'', estado:'en_terreno',
+    fechaVisita: v.fecha || hoyISO(), levantoPor: v.responsable||'', estado:'en_terreno', agenda:null,
     checks, recintos:[recinto],
     fotos: (v.fotos||[]).map((f,i)=> ({id:f.id, itemId:f.partidaId, recintoId:recinto.id, label:'F'+(i+1)})),
-    cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas: v.observaciones||'', plazoDias: db.params.plazoDias},
-    firma: {firmado:false, por:'', fecha:'', dataUrl:''},
+    cot: {numero:null, excluidas:{}, pu:{}, qty:{}, notas: v.observaciones||'', plazoDias: db.params.plazoDias, utilidadPct: db.params.utilidadDefault},
+    firmaTerreno: {firmado:false, por:'', fecha:'', dataUrl:''},
+    firma: {firmado:false, por:'', fecha:'', dataUrl:'', via:''},
     createdAt: v.createdAt || Date.now(), updatedAt: v.updatedAt || Date.now(), dirty:true
   };
+}
+/** Retrocompatibilidad con OT ya guardadas (locales o en la nube) antes de
+ *  estos cambios: cliente reemplaza a mandante, y se completan los campos
+ *  nuevos con valores neutros para que nada quede undefined. */
+function normalizarOT(o){
+  if(!o) return o;
+  if(!o.cliente && o.mandante) o.cliente = o.mandante;
+  if(o.clienteId === undefined) o.clienteId = null;
+  if(o.sucursalId === undefined) o.sucursalId = null;
+  if(o.contactoObra === undefined) o.contactoObra = '';
+  if(o.agenda === undefined) o.agenda = null;
+  if(!o.firmaTerreno) o.firmaTerreno = {firmado:false, por:'', fecha:'', dataUrl:''};
+  if(o.firma && o.firma.via === undefined) o.firma.via = o.firma.firmado ? 'firma' : '';
+  if(o.cot && (o.cot.utilidadPct === undefined || o.cot.utilidadPct === null)){
+    o.cot.utilidadPct = db.params.utilidadDefault;
+  }
+  return o;
 }
 const getOT = ()=> db.ots.find(o=> o.id === S.otId) || null;
 const getRecinto = ot => (ot && ot.recintos[S.areaIdx]) || (ot && ot.recintos[0]) || null;
@@ -502,11 +545,12 @@ function calcular(ot){
       return {item, recinto, cantidad, pu, total: cantidad * pu};
     });
   const neto = lineas.reduce((s,l)=> s + l.total, 0);
+  const utilidadPct = num(ot.cot.utilidadPct != null ? ot.cot.utilidadPct : db.params.utilidadDefault);
   const gg = neto * db.params.gg;
-  const utilidad = neto * db.params.utilidad;
+  const utilidad = neto * utilidadPct;
   const subtotal = neto + gg + utilidad;
   const iva = subtotal * db.params.iva;
-  return {lineas, neto, gg, utilidad, subtotal, iva, total: subtotal + iva};
+  return {lineas, neto, gg, utilidad, utilidadPct, subtotal, iva, total: subtotal + iva};
 }
 function conteos(ot){
   const items = todosItems(ot);
@@ -589,6 +633,7 @@ async function sincronizar(manual=false){
     for(let r of remotos){
       if(!r || !r.id) continue;
       if(!r.recintos && Array.isArray(r.partidas)){ r = migrarV1(r); cambios = true; }
+      normalizarOT(r);
       const local = db.ots.find(o=> o.id === r.id);
       if(!local){ r.dirty = false; db.ots.push(r); cambios = true; }
       else if(!local.dirty && (r.updatedAt||0) > (local.updatedAt||0)){ Object.assign(local, r, {dirty:false}); cambios = true; }
@@ -635,6 +680,14 @@ async function sincronizar(manual=false){
     } else if((db.ajustesTs||0) > ts){
       await api('ajustes', {method:'PUT', body: JSON.stringify({params:db.params, empresa:db.empresa, catalogo:db.catalogo, ts:db.ajustesTs})});
     }
+    const remCli = await api('clientes');
+    const tsCli = (remCli && remCli.ts) || 0;
+    if(tsCli > (db.clientesTs||0)){
+      if(Array.isArray(remCli.lista)) db.clientes = remCli.lista;
+      db.clientesTs = tsCli; cambios = true;
+    } else if((db.clientesTs||0) > tsCli){
+      await api('clientes', {method:'PUT', body: JSON.stringify({lista:db.clientes, ts:db.clientesTs})});
+    }
     saveLocal();
     setNube(hayPendientes() ? 'pend' : 'ok');
     if(manual) toast('Sincronizado con la nube.');
@@ -659,13 +712,13 @@ function render(){
   $$('.view').forEach(v=> v.classList.toggle('on', v.id === 'v-'+S.view));
   const f = {visitas:vVisitas, terreno:vTerreno, informe:vInforme,
              cotizacion:vCotizacion, oficina:vOficina, clientes:vClientes,
+             'cliente-detalle':vClienteDetalle, config:vConfig,
              cliente:vCliente, tutorial:vTutorial}[S.view];
   if(f) f();
 }
 
 /* ═══════════ 1 · VISITAS ═══════════ */
 function vVisitas(){
-  const tags = {en_terreno:['En terreno','tag-accent'], cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
   const ots = db.ots.slice().sort((a,b)=> b.updatedAt - a.updatedAt);
   $('#v-visitas').innerHTML = `
     <div class="h2row"><h2 class="h2big" style="margin:0">Visitas</h2>
@@ -673,7 +726,7 @@ function vVisitas(){
     <p class="sub">Toca una OT para capturar fotos y medidas en terreno.</p>
     <div class="list-grid" style="display:flex;flex-direction:column;gap:15px">
       ${ots.length ? ots.map(o=>{
-        const c = conteos(o), t = tags[o.estado] || tags.en_terreno;
+        const c = conteos(o), t = ESTADO_LABEL[o.estado] || ESTADO_LABEL.en_terreno;
         return `<div class="card blueprint" data-ot="${o.id}" style="cursor:pointer">${corners}
           <div style="display:flex;gap:10px;align-items:flex-start">
             <div style="flex:1;min-width:0">
@@ -683,7 +736,7 @@ function vVisitas(){
             <span class="tag ${t[1]}">${t[0]}</span>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:11.5px;opacity:.75">
-            <span>${esc(o.mandante || 'Sin mandante')}</span>
+            <span>${esc(o.cliente || 'Sin cliente')}</span>
             <span>${esc(o.comuna || '—')}</span>
             <span>Visita ${esc(fechaCorta(o.fechaVisita))}</span>
             <span>${c.partidas} partidas · ${c.fotos} fotos</span>
@@ -694,17 +747,23 @@ function vVisitas(){
           <div style="font-size:12.5px;opacity:.7">Crea la primera OT para salir a terreno.</div>
         </div>`}
     </div>
-    <button class="btn btn-primary btn-block blueprint" id="b-nueva-ot" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:15px">${corners}+ NUEVA OT</button>`;
+    <div style="display:flex;gap:8px;margin-top:15px">
+      <button class="btn btn-primary blueprint" id="b-nueva-ot" style="flex:1;padding:12px;font-size:15px;letter-spacing:.05em">${corners}+ NUEVA OT</button>
+      <button class="btn btn-secondary" id="b-agendar" style="flex:1;font-size:13px">+ Agendar</button>
+    </div>`;
 
   $$('[data-ot]').forEach(c=> c.onclick = ()=>{
     S.otId = c.dataset.ot; S.areaIdx = 0; S.rol='terreno';
     $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol==='terreno'));
+    const ot = getOT();
+    if(ot.estado === 'agendada'){ ot.estado = 'en_terreno'; save(); }
     irA('terreno');
   });
   $('#b-nueva-ot').onclick = ()=>{
     const ot = nuevaOT(); db.ots.push(ot); S.otId = ot.id; S.areaIdx = 0;
     save(); irA('terreno'); toast(ot.codigo + ' creada.');
   };
+  $('#b-agendar').onclick = ()=> abrirSheet('agendar');
 }
 
 /* ═══════════ 2 · TERRENO ═══════════ */
@@ -712,6 +771,7 @@ function vTerreno(){
   const ot = getOT(); if(!ot){ irA('visitas'); return; }
   const rec = getRecinto(ot); const c = conteos(ot);
   $('#v-terreno').innerHTML = `
+    <button class="btn btn-ghost btn-volver" id="b-volver-visitas">← Volver a Visitas</button>
     <div style="display:flex;gap:10px;align-items:flex-start">
       <div style="flex:1;min-width:0">
         <div class="kick">${esc(ot.codigo)} · Captura en terreno</div>
@@ -747,6 +807,7 @@ function vTerreno(){
       <button class="btn btn-secondary" id="b-datos" style="flex:1;font-size:12px">Datos de la OT</button>
     </div>`;
 
+  $('#b-volver-visitas').onclick = ()=> irA('visitas');
   $$('[data-f]', $('#v-terreno')).forEach(el=>{
     el.onfocus = ()=>{ if(el.textContent.trim() === el.dataset.ph) el.textContent = ''; };
     el.onblur = ()=>{
@@ -840,6 +901,7 @@ async function pintarFotos(ot){
         ${recs[i] ? `<img src="${recs[i].thumb}" alt="${esc(f.label)}" data-ver="${f.id}">` : ''}
         <span class="lbl">${esc(f.label)}</span>
         <button class="del" data-delfoto="${f.id}" title="Eliminar">×</button>
+        <input class="input" data-caption="${f.id}" value="${esc(f.caption||'')}" placeholder="Descripción de la foto…" style="font-size:10.5px;min-height:26px;padding:3px 6px;margin-top:3px">
       </div>`).join('') +
       `<label class="btn btn-secondary btn-foto" for="cam-${itemId}">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -848,6 +910,10 @@ async function pintarFotos(ot){
       <button class="btn btn-ghost" data-quitar="${itemId}" style="margin-left:auto;font-size:12px">Quitar</button>`;
 
     $$('[data-cam]', cont).forEach(inp=> inp.onchange = e=> agregarFotos(e.target.files, inp.dataset.cam));
+    $$('[data-caption]', cont).forEach(inp=> inp.oninput = ()=>{
+      const f = ot.fotos.find(x=> x.id === inp.dataset.caption);
+      if(f){ f.caption = inp.value; save(); }
+    });
     $$('[data-delfoto]', cont).forEach(b=> b.onclick = async ()=>{
       const id = b.dataset.delfoto;
       await photoDel(id);
@@ -884,7 +950,7 @@ async function agregarFotos(files, itemId){
     try{
       const id = uid();
       await photoPut(await fileToPhoto(file, id));
-      ot.fotos.push({id, itemId, recintoId: rec.id, label:'F'+(ot.fotos.length+1)});
+      ot.fotos.push({id, itemId, recintoId: rec.id, label:'F'+(ot.fotos.length+1), caption:''});
     }catch(e){ console.warn(e); }
   }
   renumerarFotos(ot);
@@ -916,7 +982,7 @@ function vInforme(){
       <h2 style="font-size:26px">${esc(ot.obra || 'Obra sin nombre')}</h2>
       <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px">
         <span style="opacity:.55">OT</span><span>${esc(ot.codigo)}</span>
-        <span style="opacity:.55">Mandante</span><span>${esc(ot.mandante||'—')}</span>
+        <span style="opacity:.55">Cliente</span><span>${esc(ot.cliente||'—')}</span>
         <span style="opacity:.55">Ubicación</span><span>${esc([ot.direccion, ot.comuna].filter(Boolean).join(' · ')||'—')}${ot.gps?' · '+ot.gps.lat.toFixed(4)+', '+ot.gps.lon.toFixed(4):''}</span>
         <span style="opacity:.55">Visita</span><span>${esc(fechaCorta(ot.fechaVisita))}</span>
         <span style="opacity:.55">Levantó</span><span>${esc(ot.levantoPor||'—')}</span>
@@ -937,6 +1003,21 @@ function vInforme(){
 
     ${secciones || '<p class="sub" style="margin-top:16px">Aún no hay partidas levantadas.</p>'}
 
+    <div class="sec"><span class="n">${String(n+1).padStart(2,'0')}</span><h3>Conformidad en terreno (opcional)</h3><span class="rule"></span></div>
+    ${ot.firmaTerreno.firmado ? `
+      <div class="resumen">
+        <div class="cap" style="opacity:.75">Conforme en terreno</div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">Firmado por ${esc(ot.firmaTerreno.por||ot.contactoObra||'contacto en obra')}</div>
+        <div style="font-size:12px;opacity:.8">${esc(ot.firmaTerreno.fecha)}</div>
+        ${ot.firmaTerreno.dataUrl ? `<img src="${ot.firmaTerreno.dataUrl}" style="background:#fff;margin-top:10px;max-height:70px">` : ''}
+        <button class="btn btn-ghost" id="b-rehacer-firma-terreno" style="font-size:12px;margin-top:6px">Rehacer firma</button>
+      </div>`
+    : `
+      <p class="sub" style="margin:0 0 8px">Si el contacto en obra queda conforme con lo levantado, puede firmar aquí mismo. No es obligatorio para pasar a cotización.</p>
+      <canvas id="firma-terreno-canvas"></canvas>
+      <button class="btn btn-ghost" id="b-limpiar-firma-terreno" style="font-size:12px;margin-top:4px">Borrar firma</button>
+      <button class="btn btn-secondary btn-block" id="b-firmar-terreno" style="font-size:13px">Firmar conformidad</button>`}
+
     <button class="btn btn-primary btn-block blueprint" id="b-a-cotizar" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:18px">${corners}PASAR A COTIZACIÓN →</button>
     <button class="btn btn-secondary btn-block" id="b-volver" style="font-size:13.5px">Volver a captura</button>`;
 
@@ -949,6 +1030,20 @@ function vInforme(){
     S.rol='terreno'; $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol==='terreno'));
     irA('terreno');
   };
+  if(!ot.firmaTerreno.firmado){
+    const pad = crearFirmaPad('firma-terreno-canvas', 'b-limpiar-firma-terreno');
+    if(pad) $('#b-firmar-terreno').onclick = ()=>{
+      if(pad.estaVacia()){ toast('Dibuje la firma antes de confirmar.'); return; }
+      ot.firmaTerreno = {firmado:true, por: ot.contactoObra || 'Contacto en obra',
+        fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+        dataUrl: pad.dataUrl()};
+      save(); render();
+      toast('Conformidad en terreno registrada.');
+    };
+  } else {
+    const rehacer = $('#b-rehacer-firma-terreno');
+    if(rehacer) rehacer.onclick = ()=>{ ot.firmaTerreno = {firmado:false, por:'', fecha:'', dataUrl:''}; save(); render(); };
+  }
   pintarFotosInforme(ot);
 }
 async function pintarFotosInforme(ot){
@@ -958,7 +1053,7 @@ async function pintarFotosInforme(ot){
     const items = {}; todosItems(ot).forEach(({item})=> items[item.id] = item.code);
     cont.innerHTML = fotos.map((f,i)=> `<figure style="width:88px">
       ${recs[i] ? `<img src="${recs[i].thumb}" style="height:66px;width:88px;object-fit:cover;border:1px solid var(--color-divider)">` : ''}
-      <figcaption style="font-size:10.5px">${esc(f.label)} · ${esc(items[f.itemId]||'')}</figcaption></figure>`).join('');
+      <figcaption style="font-size:10.5px">${esc(f.label)} · ${esc(items[f.itemId]||'')}${f.caption?`<br><span style="opacity:.7">${esc(f.caption)}</span>`:''}</figcaption></figure>`).join('');
   }
 }
 
@@ -970,6 +1065,7 @@ function vCotizacion(){
   const todas = todosItems(ot);
 
   $('#v-cotizacion').innerHTML = `
+    <button class="btn btn-ghost btn-volver" id="b-volver-informe">← Volver al informe</button>
     <div class="kick">Cotización ${esc(ot.cot.numero)} · tarifa ${esc(db.params.tarifa)}</div>
     <h2>${esc(ot.obra || 'Obra sin nombre')}</h2>
     <p class="sub" style="font-size:12px">Cantidades traídas del levantamiento. Ajusta precio unitario o desmarca partidas.</p>
@@ -1005,17 +1101,17 @@ function vCotizacion(){
       <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;opacity:.75;margin-bottom:8px">Resumen económico</div>
       <div class="row"><span>Neto partidas</span><span>${money(r.neto)}</span></div>
       <div class="row"><span>Gastos generales ${Math.round(db.params.gg*100)}%</span><span>${money(r.gg)}</span></div>
-      <div class="row"><span>Utilidad ${Math.round(db.params.utilidad*100)}%</span><span>${money(r.utilidad)}</span></div>
+      <div class="row" style="align-items:center">
+        <span>Utilidad <input class="input" id="in-utilidad" inputmode="decimal" style="width:52px;display:inline-block;padding:2px 6px;font-size:12px;text-align:right" value="${fmtPct(r.utilidadPct)}">%</span>
+        <span>${money(r.utilidad)}</span>
+      </div>
       <div class="row"><span>IVA ${Math.round(db.params.iva*100)}%</span><span>${money(r.iva)}</span></div>
       <hr>
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
         <span class="tot-l">Total con IVA</span><span class="tot-v">${money(r.total)}</span></div>
     </div>
 
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-secondary" id="b-ver-informe" style="flex:1">Ver informe</button>
-      <button class="btn btn-primary blueprint" id="b-enviar" style="flex:1">${corners}ENVIAR</button>
-    </div>
+    <button class="btn btn-primary btn-block blueprint" id="b-enviar" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:12px">${corners}ENVIAR</button>
     <button class="btn btn-secondary btn-block" id="b-pdf" style="font-size:13px">Descargar PDF combinado</button>
     <button class="btn btn-secondary btn-block" id="b-xls" style="font-size:13px">Exportar Excel</button>`;
 
@@ -1033,7 +1129,11 @@ function vCotizacion(){
     ot.cot.qty[inp.dataset.cant] = inp.value;
     save(); refrescarTotales(ot);
   });
-  $('#b-ver-informe').onclick = ()=> irA('informe');
+  $('#b-volver-informe').onclick = ()=> irA('informe');
+  $('#in-utilidad').oninput = e=>{
+    ot.cot.utilidadPct = num(e.target.value)/100;
+    save(); refrescarTotales(ot);
+  };
   $('#b-enviar').onclick = ()=> abrirSheet('enviar');
   $('#b-pdf').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCombinado(ot), 60); };
   $('#b-xls').onclick = ()=> exportarExcel(ot);
@@ -1061,62 +1161,101 @@ function refrescarTotales(ot){
 <script>
 /* ═══════════ 5 · PANEL DE OFICINA ═══════════ */
 function vOficina(){
-  const tags = {en_terreno:['En terreno','tag-accent'], cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
   const conMonto = db.ots.map(o=> ({o, r: calcular(o)}));
-  const enviadas = conMonto.filter(x=> x.o.estado !== 'en_terreno');
+  const enviadas = conMonto.filter(x=> x.o.estado !== 'en_terreno' && x.o.estado !== 'agendada');
   const aprobadas = conMonto.filter(x=> x.o.estado === 'aprobada');
   const totalEnviado = enviadas.reduce((s,x)=> s + x.r.total, 0);
   const cierre = enviadas.length ? Math.round(aprobadas.length / enviadas.length * 100) : 0;
+  const porCotizar = conMonto.filter(x=> x.o.estado==='en_terreno' || x.o.estado==='agendada').length;
 
   $('#v-oficina').innerHTML = `
     <h2 class="h2big">Oficina técnica</h2>
     <p class="sub">Levantamientos del equipo, listos para cotizar y enviar.</p>
 
-    <div class="sec"><span class="n">01</span><h3>Tu cuenta</h3><span class="rule"></span></div>
-    <div id="cuenta-box">Cargando…</div>
-
-    <div class="kpis" style="margin-top:18px">
+    <div class="kpis">
       <div class="kpi blueprint">${corners}<div class="l">Levantamientos</div><div class="v">${db.ots.length}</div><div class="s">en total</div></div>
-      <div class="kpi blueprint">${corners}<div class="l">Por cotizar</div><div class="v">${conMonto.filter(x=> x.o.estado==='en_terreno').length}</div><div class="s">aún en terreno</div></div>
+      <div class="kpi blueprint">${corners}<div class="l">Por cotizar</div><div class="v">${porCotizar}</div><div class="s">agendados o en terreno</div></div>
       <div class="kpi blueprint">${corners}<div class="l">Enviadas</div><div class="v" style="font-size:20px">${money(totalEnviado)}</div><div class="s">en ${enviadas.length} propuesta${enviadas.length===1?'':'s'}</div></div>
       <div class="kpi blueprint">${corners}<div class="l">Tasa cierre</div><div class="v">${cierre}%</div><div class="s">${aprobadas.length} aprobada${aprobadas.length===1?'':'s'}</div></div>
     </div>
 
-    <div class="sec"><span class="n">02</span><h3>Pipeline</h3><span class="rule"></span></div>
+    <div class="sec"><span class="n">01</span><h3>Pipeline</h3><span class="rule"></span></div>
     <table class="table"><thead><tr><th>OT / obra</th><th>Estado</th><th style="text-align:right">Monto</th></tr></thead>
       <tbody>${conMonto.length ? conMonto.map(({o,r})=>{
-        const t = tags[o.estado] || tags.en_terreno;
+        const t = ESTADO_LABEL[o.estado] || ESTADO_LABEL.en_terreno;
         return `<tr data-pipe="${o.id}" style="cursor:pointer">
           <td><div style="font-family:var(--font-heading);font-weight:600;font-size:14.5px">${esc(o.obra||'Obra sin nombre')}</div>
-              <div style="font-size:10.5px;opacity:.6">${esc(o.codigo)} · ${esc(o.mandante||'sin mandante')}</div></td>
+              <div style="font-size:10.5px;opacity:.6">${esc(o.codigo)} · ${esc(o.cliente||'sin cliente')}</div></td>
           <td><span class="tag ${t[1]}">${t[0]}</span></td>
           <td class="num" style="font-size:14px">${r.total?money(r.total):'—'}</td></tr>`;
-      }).join('') : '<tr><td colspan="3" style="opacity:.6">Todavía no hay levantamientos.</td></tr>'}</tbody></table>
+      }).join('') : '<tr><td colspan="3" style="opacity:.6">Todavía no hay levantamientos.</td></tr>'}</tbody></table>`;
 
-    <div class="sec"><span class="n">03</span><h3>Ajustes</h3><span class="rule"></span></div>
+  $$('[data-pipe]').forEach(tr=> tr.onclick = ()=>{
+    S.otId = tr.dataset.pipe; S.areaIdx = 0;
+    const est = getOT().estado;
+    irA(est === 'cotizado' || est === 'aprobada' ? 'cotizacion' : 'informe');
+  });
+}
+
+/* ═══════════ CONFIGURACIÓN (tuerca) ═══════════ */
+function abrirConfig(){
+  S.volverA = {rol:S.rol, view:S.view};
+  irA('config');
+}
+function vConfig(){
+  $('#v-config').innerHTML = `
+    <button class="btn btn-ghost btn-volver" id="b-volver-config">← Volver</button>
+    <h2 class="h2big">Configuración</h2>
+    <p class="sub">Cuentas del equipo, datos de la empresa y catálogo de precios.</p>
+
+    <div class="sec"><span class="n">01</span><h3>Tu cuenta</h3><span class="rule"></span></div>
+    <div id="cuenta-box">Cargando…</div>
+
+    <div class="sec"><span class="n">02</span><h3>Datos de la empresa</h3><span class="rule"></span></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <label><span class="cap">Nombre / razón social</span><input class="input" data-e="nombre" value="${esc(db.empresa.nombre)}"></label>
+      <label><span class="cap">RUT</span><input class="input" data-e="rut" value="${esc(db.empresa.rut||'')}"></label>
+      <label><span class="cap">Dirección</span><input class="input" data-e="direccion" value="${esc(db.empresa.direccion||'')}"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label><span class="cap">Teléfono</span><input class="input" data-e="fono" value="${esc(db.empresa.fono||'')}"></label>
+        <label><span class="cap">Email</span><input class="input" data-e="email" value="${esc(db.empresa.email||'')}"></label>
+      </div>
+      <label><span class="cap">Sitio web</span><input class="input" data-e="web" value="${esc(db.empresa.web||'')}"></label>
+    </div>
+
+    <div class="sec"><span class="n">03</span><h3>Parámetros por defecto</h3><span class="rule"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label><span class="cap">Gastos generales %</span><input class="input" inputmode="decimal" data-p="gg" value="${db.params.gg*100}"></label>
-      <label><span class="cap">Utilidad %</span><input class="input" inputmode="decimal" data-p="utilidad" value="${db.params.utilidad*100}"></label>
-      <label><span class="cap">IVA %</span><input class="input" inputmode="decimal" data-p="iva" value="${db.params.iva*100}"></label>
+      <label><span class="cap">Gastos generales %</span><input class="input" inputmode="decimal" data-p="gg" value="${fmtPct(db.params.gg)}"></label>
+      <label><span class="cap">IVA %</span><input class="input" inputmode="decimal" data-p="iva" value="${fmtPct(db.params.iva)}"></label>
+      <label><span class="cap">Utilidad inicial %</span><input class="input" inputmode="decimal" data-p="utilidadDefault" value="${fmtPct(db.params.utilidadDefault)}"></label>
       <label><span class="cap">Validez días</span><input class="input" inputmode="numeric" data-p="validezDias" value="${db.params.validezDias}"></label>
     </div>
-    <button class="btn btn-secondary btn-block" id="b-catalogo-edit" style="font-size:13px">Catálogo de precios (${db.catalogo.length})</button>
-    <div style="display:flex;gap:8px;margin-top:8px">
+    <p class="sub" style="margin-top:6px">La utilidad inicial solo sugiere el valor de un proyecto nuevo: cada cotización puede ajustar la suya en la pestaña Oficina de ese proyecto.</p>
+
+    <div class="sec"><span class="n">04</span><h3>Catálogo de precios</h3><span class="rule"></span></div>
+    <p class="sub">Tarifa ${esc(db.params.tarifa)} · ${db.catalogo.length} partidas.</p>
+    <button class="btn btn-secondary btn-block" id="b-catalogo-edit" style="font-size:13px">Editar catálogo</button>
+    <button class="btn btn-secondary btn-block" id="b-catalogo-import" style="font-size:13px">Importar catálogo (CSV)</button>
+
+    <div class="sec"><span class="n">05</span><h3>Respaldo</h3><span class="rule"></span></div>
+    <div style="display:flex;gap:8px">
       <button class="btn btn-secondary" id="b-export" style="flex:1;font-size:12px">Exportar respaldo</button>
       <button class="btn btn-secondary" id="b-import" style="flex:1;font-size:12px">Importar</button>
       <input type="file" id="f-import" accept="application/json" hidden>
     </div>`;
 
-  $$('[data-pipe]').forEach(tr=> tr.onclick = ()=>{
-    S.otId = tr.dataset.pipe; S.areaIdx = 0;
-    irA(getOT().estado === 'en_terreno' ? 'informe' : 'cotizacion');
-  });
+  $('#b-volver-config').onclick = ()=>{
+    if(S.volverA){ S.rol = S.volverA.rol; $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol===S.rol)); irA(S.volverA.view); }
+    else setRol('oficina');
+  };
+  $$('[data-e]').forEach(inp=> inp.oninput = ()=>{ db.empresa[inp.dataset.e] = inp.value; marcarAjustes(); });
   $$('[data-p]').forEach(inp=> inp.oninput = ()=>{
     const k = inp.dataset.p;
     db.params[k] = (k === 'validezDias') ? num(inp.value) : num(inp.value)/100;
     marcarAjustes();
   });
   $('#b-catalogo-edit').onclick = ()=> abrirSheet('precios');
+  $('#b-catalogo-import').onclick = ()=> abrirSheet('catalogo-import');
   $('#b-export').onclick = exportarJSON;
   $('#b-import').onclick = ()=> $('#f-import').click();
   $('#f-import').onchange = e=>{ if(e.target.files[0]) importarJSON(e.target.files[0]); e.target.value=''; };
@@ -1258,10 +1397,10 @@ function vCliente(){
   const r = calcular(ot), c = conteos(ot);
 
   $('#v-cliente').innerHTML = `
-    <button class="btn btn-ghost" id="b-otro-cliente" style="font-size:12px;margin-bottom:4px">← Elegir otro cliente</button>
+    <button class="btn btn-ghost btn-volver" id="b-otro-cliente">← Volver a ${esc(ot.cliente||'clientes')}</button>
     <div class="kick">Propuesta ${esc(ot.cot.numero||'—')} · ${esc(db.empresa.nombre)}</div>
     <h2>${esc(ot.obra||'Obra sin nombre')}</h2>
-    <p class="sub" style="font-size:12px">${esc(ot.mandante||'—')} · ${esc([ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—')}</p>
+    <p class="sub" style="font-size:12px">${esc(ot.cliente||'—')} · ${esc([ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—')}</p>
 
     <div class="blueprint" style="padding:14px">${corners}
       <div class="cap">Documento combinado</div>
@@ -1285,7 +1424,7 @@ function vCliente(){
     ${ot.firma.firmado ? `
       <div class="resumen" style="margin-top:15px">
         <div class="cap" style="opacity:.75">Aprobada</div>
-        <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">Firmada por ${esc(ot.firma.por||ot.mandante||'el mandante')}</div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">${ot.firma.via==='correo' ? 'Aprobada por correo' : 'Firmada'} por ${esc(ot.firma.por||ot.cliente||'el cliente')}</div>
         <div style="font-size:12px;opacity:.8">${esc(ot.firma.fecha)} · se genera OT de ejecución</div>
         ${ot.firma.dataUrl ? `<img src="${ot.firma.dataUrl}" style="background:#fff;margin-top:10px;max-height:80px">` : ''}
       </div>`
@@ -1295,53 +1434,131 @@ function vCliente(){
       <canvas id="firma-canvas"></canvas>
       <button class="btn btn-ghost" id="b-limpiar-firma" style="font-size:12px;margin-top:4px">Borrar firma</button>
       <button class="btn btn-primary btn-block blueprint" id="b-firmar" style="padding:12px;font-size:15px;letter-spacing:.05em">${corners}APROBAR Y FIRMAR</button>
+      <div style="text-align:center;font-size:11px;opacity:.55;margin:8px 0">— o bien —</div>
+      <button class="btn btn-secondary btn-block" id="b-aprobar-correo" style="font-size:13px">Aprobar sin firma (aprobación por correo)</button>
       <button class="btn btn-secondary btn-block" id="b-cambios" style="font-size:13px">Solicitar cambios</button>`}`;
 
   $('#b-pdf-cli').onclick = ()=>{ toast('Generando PDF…'); setTimeout(()=> pdfCombinado(ot), 60); };
-  $('#b-otro-cliente').onclick = ()=> irA('clientes');
+  $('#b-otro-cliente').onclick = ()=>{
+    if(ot.clienteId){ S.clienteId = ot.clienteId; S.clienteNombre = null; irA('cliente-detalle'); }
+    else if(ot.cliente){ S.clienteId = null; S.clienteNombre = ot.cliente; irA('cliente-detalle'); }
+    else irA('clientes');
+  };
   if(!ot.firma.firmado){ montarFirma(ot); }
 }
 
-/* ═══════════ CLIENTES: elegir el proyecto a revisar ═══════════ */
+/* ═══════════ CLIENTES: directorio con sucursales y cotizaciones ═══════════ */
 let filtroCliente = '';
+/** Lista unificada: fichas reales de db.clientes + nombres sueltos que ya
+ *  tienen OT pero nunca se incorporaron como cliente (datos de antes de esta
+ *  función, o cargados a mano en terreno). */
+function directorioClientes(){
+  const fichas = db.clientes.map(c=> ({
+    id: c.id, nombre: c.nombre, legacy:false,
+    ots: db.ots.filter(o=> o.clienteId === c.id)
+  }));
+  const nombresConFicha = new Set(db.clientes.map(c=> c.nombre.toLowerCase()));
+  const sueltos = new Map();
+  db.ots.forEach(o=>{
+    if(o.clienteId || !o.cliente) return;
+    const k = o.cliente.toLowerCase();
+    if(nombresConFicha.has(k)) return;
+    if(!sueltos.has(k)) sueltos.set(k, {id:null, nombre:o.cliente, legacy:true, ots:[]});
+    sueltos.get(k).ots.push(o);
+  });
+  return fichas.concat(Array.from(sueltos.values())).sort((a,b)=> a.nombre.localeCompare(b.nombre,'es'));
+}
 function vClientes(){
   $('#v-clientes').innerHTML = `
     <h2 class="h2big">Clientes</h2>
-    <p class="sub">Elige el proyecto para ver su propuesta y firma.</p>
-    <input class="input" id="buscar-cliente" placeholder="Buscar por cliente o proyecto…" value="${esc(filtroCliente)}" style="margin-bottom:14px">
+    <p class="sub">Cada cliente puede tener varias sucursales y cotizaciones.</p>
+    <input class="input" id="buscar-cliente" placeholder="Buscar cliente…" value="${esc(filtroCliente)}" style="margin-bottom:12px">
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn btn-primary blueprint" id="b-incorporar-cliente" style="flex:1;font-size:13px">${corners}+ Incorporar cliente</button>
+      <button class="btn btn-secondary" id="b-importar-clientes" style="flex:1;font-size:13px">Importación masiva</button>
+    </div>
     <div id="lista-clientes" class="list-grid" style="display:flex;flex-direction:column"></div>`;
   $('#buscar-cliente').oninput = e=>{ filtroCliente = e.target.value; pintarListaClientes(); };
+  $('#b-incorporar-cliente').onclick = ()=> abrirSheet('incorporar-cliente');
+  $('#b-importar-clientes').onclick = ()=> abrirSheet('importar-clientes');
   pintarListaClientes();
 }
 function pintarListaClientes(){
-  const tags = {cotizado:['Cotizado','tag-outline'], aprobada:['Aprobada','tag-neutral']};
   const q = filtroCliente.trim().toLowerCase();
-  const ots = db.ots
-    .filter(o=> o.estado !== 'en_terreno')
-    .filter(o=> !q || (o.mandante||'').toLowerCase().includes(q) || (o.obra||'').toLowerCase().includes(q))
-    .sort((a,b)=> b.updatedAt - a.updatedAt);
-  $('#lista-clientes').innerHTML = ots.length ? ots.map(o=>{
-    const r = calcular(o); const t = tags[o.estado] || tags.cotizado;
-    return `<div class="card blueprint" data-cli="${o.id}" style="cursor:pointer;margin-bottom:12px">${corners}
+  const lista = directorioClientes().filter(c=> !q || c.nombre.toLowerCase().includes(q));
+  $('#lista-clientes').innerHTML = lista.length ? lista.map(c=>{
+    const sucs = c.legacy ? 0 : (db.clientes.find(x=> x.id===c.id)||{sucursales:[]}).sucursales.length;
+    const enviadas = c.ots.filter(o=> o.estado==='cotizado' || o.estado==='aprobada').length;
+    return `<div class="card blueprint" data-dir="${c.id||('n:'+esc(c.nombre))}" style="cursor:pointer;margin-bottom:12px">${corners}
       <div style="display:flex;gap:10px;align-items:flex-start">
         <div style="flex:1;min-width:0">
-          <div class="card-kicker">${esc(o.codigo)}${o.cot.numero? ' · '+esc(o.cot.numero):''}</div>
-          <div class="card-title">${esc(o.mandante || 'Sin mandante')}</div>
-          <div style="font-size:11.5px;opacity:.65;margin-top:2px">${esc(o.obra || 'Obra sin nombre')}</div>
+          <div class="card-title">${esc(c.nombre)}</div>
+          <div style="font-size:11.5px;opacity:.65;margin-top:2px">${c.legacy? 'Sin ficha completa · ' : `${sucs} sucursal${sucs===1?'':'es'} · `}${c.ots.length} OT${c.ots.length===1?'':'s'}${enviadas?` · ${enviadas} enviada${enviadas===1?'':'s'}`:''}</div>
         </div>
-        <span class="tag ${t[1]}">${t[0]}</span>
+        <span class="tag tag-outline">${c.ots.length}</span>
       </div>
-      <div style="font-family:var(--font-heading);font-weight:600;font-size:15px;margin-top:6px">${money(r.total)}</div>
     </div>`;
   }).join('') : `<div class="blueprint" style="padding:20px 14px;text-align:center">${corners}
-      <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">${q? 'Sin resultados' : 'Aún no hay propuestas enviadas'}</div>
-      <div style="font-size:12.5px;opacity:.7">${q? 'Prueba con otro nombre.' : 'Cuando Oficina envíe una cotización, aparecerá aquí.'}</div>
+      <div style="font-family:var(--font-heading);font-weight:600;font-size:18px">${q? 'Sin resultados' : 'Aún no hay clientes'}</div>
+      <div style="font-size:12.5px;opacity:.7">${q? 'Prueba con otro nombre.' : 'Incorpora el primero con el botón de arriba.'}</div>
     </div>`;
-  $$('[data-cli]').forEach(c=> c.onclick = ()=>{ S.otId = c.dataset.cli; irA('cliente'); });
+  $$('[data-dir]').forEach(c=> c.onclick = ()=>{
+    const v = c.dataset.dir;
+    if(v.startsWith('n:')){ S.clienteId = null; S.clienteNombre = v.slice(2); }
+    else { S.clienteId = v; S.clienteNombre = null; }
+    irA('cliente-detalle');
+  });
+}
+function vClienteDetalle(){
+  const ficha = S.clienteId ? db.clientes.find(c=> c.id === S.clienteId) : null;
+  if(!ficha && !S.clienteNombre){ irA('clientes'); return; }
+  const nombre = ficha ? ficha.nombre : S.clienteNombre;
+  const ots = db.ots.filter(o=> ficha ? o.clienteId === ficha.id : (!o.clienteId && o.cliente === nombre))
+    .sort((a,b)=> b.updatedAt - a.updatedAt);
+
+  $('#v-cliente-detalle').innerHTML = `
+    <button class="btn btn-ghost btn-volver" id="b-volver-clientes">← Volver a clientes</button>
+    <h2 class="h2big">${esc(nombre)}</h2>
+    ${ficha ? '' : `<p class="sub">Este cliente aún no tiene ficha con sucursales. Incorpóralo para agregarlas.</p>
+      <button class="btn btn-secondary" id="b-completar-ficha" style="font-size:12px;margin-bottom:10px">Crear ficha para ${esc(nombre)}</button>`}
+
+    ${ficha ? `
+      <div class="sec"><span class="n">01</span><h3>Sucursales</h3><span class="rule"></span></div>
+      <button class="btn btn-secondary btn-block" id="b-mas-sucursal" style="font-size:12.5px;margin-bottom:10px">+ Agregar sucursal</button>
+      ${ficha.sucursales.length ? ficha.sucursales.map(s=> `<div class="card" style="padding:11px;margin-bottom:8px">
+          <div class="card-title" style="font-size:14.5px">${esc(s.nombre)}</div>
+          <div style="font-size:11.5px;opacity:.65">${esc([s.direccion, s.encargado, s.telefono, s.email].filter(Boolean).join(' · ')||'Sin datos adicionales')}</div>
+        </div>`).join('') : '<p class="sub">Sin sucursales registradas.</p>'}
+    ` : ''}
+
+    <div class="sec"><span class="n">${ficha?'02':'01'}</span><h3>Cotizaciones</h3><span class="rule"></span></div>
+    ${ots.length ? ots.map(o=>{
+      const r = calcular(o); const t = ESTADO_LABEL[o.estado] || ESTADO_LABEL.en_terreno;
+      const verDoc = o.estado === 'cotizado' || o.estado === 'aprobada';
+      return `<div class="card blueprint" ${verDoc?`data-ver-ot="${o.id}" style="cursor:pointer;margin-bottom:10px"`:'style="margin-bottom:10px;opacity:.7"'}>${corners}
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div class="card-kicker">${esc(o.codigo)}${o.cot.numero? ' · '+esc(o.cot.numero):''}</div>
+            <div class="card-title">${esc(o.obra || 'Obra sin nombre')}</div>
+          </div>
+          <span class="tag ${t[1]}">${t[0]}</span>
+        </div>
+        <div style="font-family:var(--font-heading);font-weight:600;font-size:15px;margin-top:6px">${verDoc? money(r.total) : 'Aún sin cotización enviada'}</div>
+      </div>`;
+    }).join('') : '<p class="sub">Este cliente todavía no tiene cotizaciones.</p>'}`;
+
+  $('#b-volver-clientes').onclick = ()=> irA('clientes');
+  const completar = $('#b-completar-ficha');
+  if(completar) completar.onclick = ()=> abrirSheet('incorporar-cliente');
+  const masSuc = $('#b-mas-sucursal');
+  if(masSuc) masSuc.onclick = ()=> abrirSheet('sucursal');
+  $$('[data-ver-ot]').forEach(c=> c.onclick = ()=>{ S.otId = c.dataset.verOt; irA('cliente'); });
 }
 
-function montarFirma(ot){
-  const cv = $('#firma-canvas'); if(!cv) return;
+/** Panel de firma reutilizable: dibuja en un canvas y expone si quedó vacío
+ *  y su imagen, sin decidir qué hacer con eso (cada vista lo resuelve). */
+function crearFirmaPad(canvasId, limpiarId){
+  const cv = $('#'+canvasId); if(!cv) return null;
   const dpr = window.devicePixelRatio || 1;
   cv.width = cv.offsetWidth * dpr; cv.height = 120 * dpr;
   const cx = cv.getContext('2d');
@@ -1358,15 +1575,29 @@ function montarFirma(ot){
   const fin = ()=>{ dibujando = false; };
   cv.addEventListener('pointerdown', ini); cv.addEventListener('pointermove', mov);
   window.addEventListener('pointerup', fin);
-  $('#b-limpiar-firma').onclick = ()=>{ cx.clearRect(0,0,cv.width,cv.height); vacio = true; };
+  const limpiarBtn = $('#'+limpiarId);
+  if(limpiarBtn) limpiarBtn.onclick = ()=>{ cx.clearRect(0,0,cv.width,cv.height); vacio = true; };
+  return { estaVacia: ()=> vacio, dataUrl: ()=> cv.toDataURL('image/png') };
+}
+
+function montarFirma(ot){
+  const pad = crearFirmaPad('firma-canvas', 'b-limpiar-firma'); if(!pad) return;
   $('#b-firmar').onclick = ()=>{
-    if(vacio){ toast('Dibuje la firma antes de aprobar.'); return; }
-    ot.firma = {firmado:true, por: ot.mandante || 'el mandante',
+    if(pad.estaVacia()){ toast('Dibuje la firma antes de aprobar.'); return; }
+    ot.firma = {firmado:true, por: ot.cliente || 'el cliente', via:'firma',
       fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-      dataUrl: cv.toDataURL('image/png')};
+      dataUrl: pad.dataUrl()};
     ot.estado = 'aprobada';
     save(); render();
     toast('Cotización aprobada. Se abre OT de ejecución.');
+  };
+  $('#b-aprobar-correo').onclick = ()=>{
+    ot.firma = {firmado:true, por: ot.cliente || 'el cliente', via:'correo',
+      fecha: new Date().toLocaleString('es-CL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+      dataUrl:''};
+    ot.estado = 'aprobada';
+    save(); render();
+    toast('Cotización aprobada (por correo). Se abre OT de ejecución.');
   };
   $('#b-cambios').onclick = ()=> toast('Observación enviada a la oficina técnica.');
 }
@@ -1376,50 +1607,60 @@ function vTutorial(){
   const paso = (n, t, cuerpo)=> `<div class="sec"><span class="n">${n}</span><h3>${t}</h3><span class="rule"></span></div>${cuerpo}`;
   $('#v-tutorial').innerHTML = `
     <h2 class="h2big">Cómo se usa la app</h2>
-    <p class="sub">El flujo completo: terreno → informe → cotización → firma del mandante. Cuatro pasos, tres personas.</p>
+    <p class="sub">El flujo completo: agendar (opcional) → terreno → informe → cotización → aprobación del cliente.</p>
 
     <div class="blueprint" style="padding:14px;margin-bottom:6px">${corners}
       <div class="card-title" style="font-size:16.5px;margin-bottom:6px">Los tres roles</div>
       <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
-        <div><span class="tag tag-accent">Terreno</span> Solo capturar: se elige la OT, se agregan partidas del catálogo, se miden y se sacan fotos. No calcula precios.</div>
-        <div><span class="tag tag-neutral">Oficina</span> Revisa el levantamiento, ajusta precios y cantidades, y envía la cotización al mandante.</div>
-        <div><span class="tag tag-outline">Cliente</span> Ve el documento combinado y lo firma con el dedo. Es lo que ve el mandante, no el equipo de ALFEX.</div>
+        <div><span class="tag tag-accent">Terreno</span> Solo capturar: se elige o agenda la OT, se agregan partidas del catálogo, se miden y se sacan fotos. No calcula precios.</div>
+        <div><span class="tag tag-neutral">Oficina</span> Revisa el levantamiento, ajusta precios, cantidades y utilidad, y envía la cotización al cliente.</div>
+        <div><span class="tag tag-outline">Clientes</span> Directorio de clientes con sus sucursales y cotizaciones — ahí se revisa el documento combinado y se aprueba.</div>
       </div>
     </div>
 
-    ${paso('01','En terreno', `
+    ${paso('01','Agendar una visita (opcional)', `
       <div class="card" style="padding:11px;margin-bottom:10px">
-        <p style="margin:0;font-size:12.5px">1. En <strong>Visitas</strong>, toca <strong>+ Nueva OT</strong> o abre una ya creada.</p>
-        <p style="margin:8px 0 0;font-size:12.5px">2. Toca <strong>Datos de la OT</strong> y llena obra, mandante, dirección y quién levanta.</p>
+        <p style="margin:0;font-size:12.5px">En <strong>Visitas</strong>, toca <strong>+ Agendar</strong>: elige el cliente y su sucursal (o crea un cliente nuevo ahí mismo), la obra y la fecha/hora. Queda como OT <strong>Agendada</strong> hasta que alguien la abre en terreno.</p>
+      </div>`)}
+
+    ${paso('02','En terreno', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">1. En <strong>Visitas</strong>, toca <strong>+ Nueva OT</strong> o abre una ya agendada.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">2. Toca <strong>Datos de la OT</strong> y llena obra, cliente, contacto en obra (quien puede firmar la conformidad), dirección y quién levanta.</p>
         <p style="margin:8px 0 0;font-size:12.5px">3. Cada espacio físico que se mide es un <strong>recinto</strong> (ej: "Fachada norte", "Baño 2° piso"). Usa <strong>+ Recinto</strong> para crear los que necesites.</p>
         <p style="margin:8px 0 0;font-size:12.5px">4. Dentro del recinto, toca <strong>+ Agregar partida</strong> y elige del catálogo. Escribe las medidas (largo, ancho, alto según corresponda): <strong>la cantidad se calcula sola</strong>, no se escribe a mano.</p>
-        <p style="margin:8px 0 0;font-size:12.5px">5. Toca <strong>FOTO</strong> en cada partida para adjuntar sus fotos — quedan numeradas F1, F2… automáticamente.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">5. Toca <strong>FOTO</strong> en cada partida para adjuntar sus fotos — quedan numeradas F1, F2… automáticamente, y cada una admite una descripción corta.</p>
         <p style="margin:8px 0 0;font-size:12.5px">6. Revisa <strong>Condiciones</strong> (acceso, energía, agua, altura, humedad, horario) antes de irte del sitio.</p>
       </div>`)}
 
-    ${paso('02','El informe', `
+    ${paso('03','El informe y la firma de conformidad', `
       <div class="card" style="padding:11px;margin-bottom:10px">
-        <p style="margin:0;font-size:12.5px">Al terminar de medir, toca <strong>Generar informe</strong>. Es un documento de solo lectura: antecedentes de la obra, condiciones del sitio y cada partida con su cálculo detallado y sus fotos. No se edita ahí — para corregir una medida hay que volver a <strong>Terreno</strong>.</p>
+        <p style="margin:0;font-size:12.5px">Al terminar de medir, toca <strong>Generar informe</strong>: antecedentes de la obra, condiciones del sitio y cada partida con su cálculo detallado y sus fotos. Para corregir una medida hay que volver a <strong>Terreno</strong>.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">Ahí mismo, de forma <strong>opcional</strong>, el contacto en obra puede firmar en la pantalla dejando constancia de que está conforme con lo levantado. No es obligatorio para pasar a cotización.</p>
       </div>`)}
 
-    ${paso('03','La cotización', `
+    ${paso('04','La cotización', `
       <div class="card" style="padding:11px;margin-bottom:10px">
-        <p style="margin:0;font-size:12.5px">Desde el informe, <strong>Pasar a cotización</strong> lleva al rol Oficina. Ahí se ajusta el <strong>precio unitario</strong> de cada partida y se puede desmarcar una línea si no se va a cobrar. Gastos generales, utilidad e IVA se calculan solos según los parámetros de la empresa.</p>
-        <p style="margin:8px 0 0;font-size:12.5px">Con <strong>Enviar</strong> se genera el PDF combinado (informe + cotización) y la OT pasa al rol Cliente para su firma.</p>
+        <p style="margin:0;font-size:12.5px">Desde el informe, <strong>Pasar a cotización</strong> lleva al rol Oficina. Ahí se ajusta el <strong>precio unitario</strong> de cada partida, se puede desmarcar una línea, y se define la <strong>utilidad de ese proyecto</strong> (cada cotización tiene la suya, no es un valor único para toda la empresa). Gastos generales e IVA usan los parámetros generales de Configuración.</p>
+        <p style="margin:8px 0 0;font-size:12.5px">Con <strong>Enviar</strong> se genera el PDF combinado (informe + cotización) y la OT queda disponible para el cliente.</p>
       </div>`)}
 
-    ${paso('04','La firma', `
+    ${paso('05','La aprobación del cliente', `
       <div class="card" style="padding:11px;margin-bottom:10px">
-        <p style="margin:0;font-size:12.5px">El mandante ve el documento resumido y firma con el dedo sobre la pantalla. Al aprobar, la OT queda marcada como <strong>Aprobada</strong> y aparece así en el panel de Oficina.</p>
+        <p style="margin:0;font-size:12.5px">En <strong>Clientes</strong> se busca al cliente, se entra a su ficha y se abre la cotización enviada. El cliente puede <strong>firmar con el dedo</strong> en la pantalla, o bien <strong>aprobar sin firma</strong> cuando la aprobación llegó por correo — es la forma más común, porque la mayoría de las propuestas se revisan y aprueban por ese medio. Cualquiera de las dos deja la OT como <strong>Aprobada</strong>.</p>
       </div>`)}
 
-    ${paso('05','Fotos y catálogo', `
+    ${paso('06','El directorio de clientes', `
       <div class="card" style="padding:11px;margin-bottom:10px">
-        <p style="margin:0;font-size:12.5px">El catálogo de precios (Oficina → Catálogo de precios) es el mismo para todo el equipo. Cambiar un precio ahí no afecta cotizaciones ya enviadas, solo las partidas que se agreguen después.</p>
-        <p style="margin:8px 0 0;font-size:12.5px">Cada foto se reduce de tamaño automáticamente para no llenar el teléfono. Para verla en grande, tócala.</p>
+        <p style="margin:0;font-size:12.5px">Cada cliente puede tener varias <strong>sucursales</strong> (dirección, encargado, contacto). Al abrir un cliente se ve la lista de sucursales y todas sus cotizaciones con su estado. Se incorporan uno por uno con <strong>+ Incorporar cliente</strong>, o varios juntos con <strong>Importación masiva</strong> (CSV).</p>
       </div>`)}
 
-    ${paso('06','Trabajar sin señal', `
+    ${paso('07','Configuración', `
+      <div class="card" style="padding:11px;margin-bottom:10px">
+        <p style="margin:0;font-size:12.5px">Detrás de la tuerca (⚙) del encabezado está todo lo que es de la empresa, no de un proyecto: tu cuenta y las personas con acceso, los datos de ALFEX, los parámetros por defecto (gastos generales, IVA, validez) y el <strong>catálogo de precios</strong> — que también admite importación masiva por CSV.</p>
+      </div>`)}
+
+    ${paso('08','Trabajar sin señal', `
       <div class="card" style="padding:11px;margin-bottom:10px">
         <p style="margin:0;font-size:12.5px">La app funciona igual sin internet: todo se guarda en el equipo apenas se escribe. El indicador junto al logo muestra el estado:</p>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:12px">
@@ -1427,10 +1668,10 @@ function vTutorial(){
           <div><span class="netchip warn" style="pointer-events:none"><i></i><span>Pendiente</span></span> — hay cambios sin subir; se suben solos al volver la señal.</div>
           <div><span class="netchip" style="pointer-events:none"><i></i><span>Sin red</span></span> — no hay conexión ahora mismo, pero no se pierde nada.</div>
         </div>
-        <p style="margin:10px 0 0;font-size:12.5px">Cada persona entra una sola vez, en <strong>Oficina → Tu cuenta</strong>, con su nombre y su clave. Sin sesión iniciada, la app guarda solo en ese equipo y no comparte con el resto.</p>
+        <p style="margin:10px 0 0;font-size:12.5px">Cada persona entra una sola vez, en <strong>Configuración → Tu cuenta</strong>, con su nombre y su clave. Sin sesión iniciada, la app guarda solo en ese equipo y no comparte con el resto.</p>
       </div>`)}
 
-    ${paso('07','En el computador', `
+    ${paso('09','En el computador', `
       <div class="card" style="padding:11px">
         <p style="margin:0;font-size:12.5px">Es la misma app y la misma dirección: no hay una versión distinta que instalar. En una pantalla grande el contenido se acomoda solo, en columnas, para aprovechar el espacio — útil para Oficina cuando se revisan varias cotizaciones seguidas.</p>
         <p style="margin:8px 0 0;font-size:12.5px">En el celular conviene agregarla a la pantalla de inicio desde el menú del navegador, para abrirla como una app.</p>
@@ -1441,7 +1682,12 @@ function vTutorial(){
 
 <script>
 /* ═══════════ SHEETS ═══════════ */
-function abrirSheet(tipo){ S.sheet = tipo; pintarSheet(); $('#overlay').classList.add('on'); }
+function abrirSheet(tipo){
+  S.sheet = tipo;
+  if(tipo === 'agendar') agendaSel = {clienteId:'', sucursalId:'', nuevo:false};
+  pintarSheet();
+  $('#overlay').classList.add('on');
+}
 function cerrarSheet(){ const habia = S.sheet; S.sheet = null; $('#overlay').classList.remove('on'); if(habia) render(); }
 
 function pintarSheet(){
@@ -1502,7 +1748,8 @@ function pintarSheet(){
   if(S.sheet === 'datos'){
     s.innerHTML = cab('Datos de la OT', 'Antecedentes que encabezan el informe y la cotización.') +
       `<div style="display:flex;flex-direction:column;gap:10px">
-        ${[['obra','Obra'],['mandante','Mandante'],['email','Email del mandante'],['direccion','Dirección'],
+        ${[['obra','Obra'],['cliente','Cliente'],['contactoObra','Contacto en obra (firma en terreno)'],
+           ['email','Email del cliente'],['direccion','Dirección'],
            ['comuna','Comuna'],['levantoPor','Levantó (nombre · cargo)'],['fechaVisita','Fecha de visita']].map(([k,l])=>
           `<label><span class="cap">${l}</span><input class="input" data-ot="${k}" ${k==='fechaVisita'?'type="date"':''} value="${esc(ot[k]||'')}"></label>`).join('')}
       </div>`;
@@ -1530,9 +1777,9 @@ function pintarSheet(){
 
   if(S.sheet === 'enviar'){
     const r = calcular(ot);
-    s.innerHTML = cab('Enviar al mandante', 'Un solo PDF: informe técnico y cotización.') +
+    s.innerHTML = cab('Enviar al cliente', 'Un solo PDF: informe técnico y cotización.') +
       `<div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12.5px">
-        <span style="opacity:.55">Para</span><span>${esc(ot.mandante||'—')}${ot.email?' · '+esc(ot.email):''}</span>
+        <span style="opacity:.55">Para</span><span>${esc(ot.cliente||'—')}${ot.email?' · '+esc(ot.email):''}</span>
         <span style="opacity:.55">Adjunto</span><span>Informe + cotización ${esc(ot.cot.numero||'')} (1 PDF)</span>
         <span style="opacity:.55">Monto</span><span style="font-family:var(--font-heading);font-weight:600;font-size:15px">${money(r.total)} IVA incl.</span>
       </div>
@@ -1544,7 +1791,192 @@ function pintarSheet(){
       S.rol = 'cliente';
       $$('nav.roles button').forEach(b=> b.classList.toggle('on', b.dataset.rol === 'cliente'));
       irA('cliente');
-      toast('Enviado. El mandante recibe el PDF para firmar.');
+      toast('Enviado. El cliente recibe el PDF para revisar y aprobar.');
+    };
+  }
+
+  if(S.sheet === 'catalogo-import'){
+    s.innerHTML = cab('Importar catálogo (CSV)', 'Una partida por línea: código, familia, descripción, unidad, precio. Unidades: m2, m3, ml, un, gl, dia.') +
+      `<textarea class="input" id="csv-catalogo" rows="7" placeholder="PIN-04,Pintura,Barniz para madera exterior,m2,5200"></textarea>
+      <input type="file" id="f-csv-catalogo" accept=".csv,text/csv" style="margin-top:8px">
+      <button class="btn btn-primary btn-block blueprint" id="b-importar-catalogo-ok" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:12px">${corners}IMPORTAR</button>`;
+    $('#f-csv-catalogo').onchange = e=>{
+      const file = e.target.files[0]; if(!file) return;
+      const rd = new FileReader();
+      rd.onload = ()=> $('#csv-catalogo').value = rd.result;
+      rd.readAsText(file);
+    };
+    $('#b-importar-catalogo-ok').onclick = ()=>{
+      const filas = parseCSV($('#csv-catalogo').value);
+      let n = 0;
+      filas.forEach(([code, familia, desc, unidad, pu])=>{
+        if(!code || !desc) return;
+        const u = UNIDADES[unidad] ? unidad : 'un';
+        const dims = u==='m2' ? ['largo','alto'] : u==='m3' ? ['largo','ancho','alto'] : u==='ml' ? ['largo'] : ['cantidad'];
+        db.catalogo.push({id:uid(), code:code.toUpperCase(), familia: familia||'General', desc, unidad:u, pu:num(pu), dims});
+        n++;
+      });
+      marcarAjustes(); cerrarSheet();
+      toast(n + ' partida' + (n===1?'':'s') + ' importada' + (n===1?'':'s') + '.');
+    };
+  }
+
+  if(S.sheet === 'incorporar-cliente'){
+    const nombrePrevio = S.clienteNombre || '';
+    s.innerHTML = cab('Incorporar cliente', 'Nombre del cliente y su primera sucursal.') +
+      `<div style="display:flex;flex-direction:column;gap:10px">
+        <label><span class="cap">Nombre del cliente</span><input class="input" id="nc-nombre" value="${esc(nombrePrevio)}"></label>
+        <label><span class="cap">Sucursal</span><input class="input" id="nc-suc-nombre" placeholder="Casa matriz" value="Casa matriz"></label>
+        <label><span class="cap">Dirección</span><input class="input" id="nc-direccion"></label>
+        <label><span class="cap">Encargado</span><input class="input" id="nc-encargado"></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label><span class="cap">Teléfono</span><input class="input" id="nc-telefono"></label>
+          <label><span class="cap">Email</span><input class="input" id="nc-email"></label>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block blueprint" id="b-crear-cliente" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:14px">${corners}INCORPORAR CLIENTE</button>`;
+    $('#b-crear-cliente').onclick = ()=>{
+      const nombre = $('#nc-nombre').value.trim();
+      if(!nombre){ toast('Escribe el nombre del cliente.'); return; }
+      const existente = db.clientes.find(c=> c.nombre.toLowerCase() === nombre.toLowerCase());
+      const sucursal = {id:uid(), nombre: $('#nc-suc-nombre').value.trim()||'Casa matriz',
+        direccion: $('#nc-direccion').value.trim(), encargado: $('#nc-encargado').value.trim(),
+        telefono: $('#nc-telefono').value.trim(), email: $('#nc-email').value.trim()};
+      let cliente = existente;
+      if(cliente) cliente.sucursales.push(sucursal);
+      else { cliente = {id:uid(), nombre, sucursales:[sucursal]}; db.clientes.push(cliente); }
+      // Legacy: sumar las OT sueltas con este nombre a la nueva ficha.
+      db.ots.forEach(o=>{ if(!o.clienteId && o.cliente && o.cliente.toLowerCase()===nombre.toLowerCase()) o.clienteId = cliente.id; });
+      marcarClientes(); cerrarSheet();
+      S.clienteId = cliente.id; S.clienteNombre = null;
+      irA('cliente-detalle');
+      toast('Cliente incorporado.');
+    };
+  }
+
+  if(S.sheet === 'sucursal'){
+    const cliente = db.clientes.find(c=> c.id === S.clienteId);
+    if(!cliente){ cerrarSheet(); }
+    else{
+      s.innerHTML = cab('Agregar sucursal', `Nueva sucursal para ${esc(cliente.nombre)}.`) +
+        `<div style="display:flex;flex-direction:column;gap:10px">
+          <label><span class="cap">Nombre</span><input class="input" id="ns-nombre" placeholder="Sucursal norte"></label>
+          <label><span class="cap">Dirección</span><input class="input" id="ns-direccion"></label>
+          <label><span class="cap">Encargado</span><input class="input" id="ns-encargado"></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label><span class="cap">Teléfono</span><input class="input" id="ns-telefono"></label>
+            <label><span class="cap">Email</span><input class="input" id="ns-email"></label>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block blueprint" id="b-crear-sucursal" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:14px">${corners}AGREGAR SUCURSAL</button>`;
+      $('#b-crear-sucursal').onclick = ()=>{
+        const nombre = $('#ns-nombre').value.trim();
+        if(!nombre){ toast('Escribe el nombre de la sucursal.'); return; }
+        cliente.sucursales.push({id:uid(), nombre, direccion:$('#ns-direccion').value.trim(),
+          encargado:$('#ns-encargado').value.trim(), telefono:$('#ns-telefono').value.trim(), email:$('#ns-email').value.trim()});
+        marcarClientes(); cerrarSheet();
+        toast('Sucursal agregada.');
+      };
+    }
+  }
+
+  if(S.sheet === 'importar-clientes'){
+    s.innerHTML = cab('Importar clientes (CSV)', 'Una sucursal por línea: cliente, sucursal, dirección, encargado, teléfono, email. Varias líneas con el mismo cliente agregan varias sucursales.') +
+      `<textarea class="input" id="csv-clientes" rows="7" placeholder="Universidad Católica,Campus San Joaquín,Av. Vicuña Mackenna 4860,Juan Pérez,+56912345678,jperez@uc.cl"></textarea>
+      <input type="file" id="f-csv-clientes" accept=".csv,text/csv" style="margin-top:8px">
+      <button class="btn btn-primary btn-block blueprint" id="b-importar-clientes-ok" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:12px">${corners}IMPORTAR</button>`;
+    $('#f-csv-clientes').onchange = e=>{
+      const file = e.target.files[0]; if(!file) return;
+      const rd = new FileReader();
+      rd.onload = ()=> $('#csv-clientes').value = rd.result;
+      rd.readAsText(file);
+    };
+    $('#b-importar-clientes-ok').onclick = ()=>{
+      const filas = parseCSV($('#csv-clientes').value);
+      let nClientes = 0, nSuc = 0;
+      filas.forEach(([nombre, sucursal, direccion, encargado, telefono, email])=>{
+        if(!nombre) return;
+        let cliente = db.clientes.find(c=> c.nombre.toLowerCase() === nombre.toLowerCase());
+        if(!cliente){ cliente = {id:uid(), nombre, sucursales:[]}; db.clientes.push(cliente); nClientes++; }
+        cliente.sucursales.push({id:uid(), nombre: sucursal||'Casa matriz', direccion:direccion||'', encargado:encargado||'', telefono:telefono||'', email:email||''});
+        nSuc++;
+      });
+      marcarClientes(); cerrarSheet();
+      toast(`${nClientes} cliente${nClientes===1?'':'s'} nuevo${nClientes===1?'':'s'} · ${nSuc} sucursal${nSuc===1?'':'es'} importada${nSuc===1?'':'s'}.`);
+    };
+  }
+
+  if(S.sheet === 'agendar'){
+    const cliente = agendaSel.clienteId ? db.clientes.find(c=> c.id === agendaSel.clienteId) : null;
+    const sucursal = cliente ? cliente.sucursales.find(s=> s.id === agendaSel.sucursalId) : null;
+    s.innerHTML = cab('Agendar levantamiento', 'Elige el cliente y la fecha; se crea la OT como agendada.') +
+      `<div style="display:flex;flex-direction:column;gap:10px">
+        <label><span class="cap">Cliente</span>
+          <select class="input" id="ag-cliente">
+            <option value="">— Elegir —</option>
+            ${db.clientes.map(c=> `<option value="${c.id}" ${agendaSel.clienteId===c.id?'selected':''}>${esc(c.nombre)}</option>`).join('')}
+            <option value="__nuevo__" ${agendaSel.nuevo?'selected':''}>+ Cliente nuevo…</option>
+          </select>
+        </label>
+
+        ${cliente ? `<label><span class="cap">Sucursal</span>
+          <select class="input" id="ag-sucursal">
+            <option value="">— Elegir —</option>
+            ${cliente.sucursales.map(s=> `<option value="${s.id}" ${agendaSel.sucursalId===s.id?'selected':''}>${esc(s.nombre)}</option>`).join('')}
+          </select></label>
+          ${sucursal ? `<div class="sub" style="font-size:11.5px">${esc([sucursal.direccion, sucursal.encargado].filter(Boolean).join(' · ')||'Sin dirección ni encargado registrados')}</div>` : ''}
+        ` : ''}
+
+        ${agendaSel.nuevo ? `
+          <label><span class="cap">Nombre del cliente nuevo</span><input class="input" id="ag-nuevo-nombre"></label>
+          <label><span class="cap">Dirección</span><input class="input" id="ag-nuevo-direccion"></label>
+          <label><span class="cap">Encargado / contacto en obra</span><input class="input" id="ag-nuevo-encargado"></label>
+        ` : ''}
+
+        <label><span class="cap">Obra</span><input class="input" id="ag-obra" placeholder="Nombre de la obra"></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label><span class="cap">Fecha</span><input class="input" type="date" id="ag-fecha" value="${hoyISO()}"></label>
+          <label><span class="cap">Hora</span><input class="input" type="time" id="ag-hora" value="09:00"></label>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block blueprint" id="b-agendar-ok" style="padding:12px;font-size:15px;letter-spacing:.05em;margin-top:14px">${corners}AGENDAR</button>`;
+
+    $('#ag-cliente').onchange = e=>{
+      const v = e.target.value;
+      agendaSel.nuevo = v === '__nuevo__';
+      agendaSel.clienteId = agendaSel.nuevo ? '' : v;
+      agendaSel.sucursalId = '';
+      pintarSheet();
+    };
+    const selSuc = $('#ag-sucursal');
+    if(selSuc) selSuc.onchange = e=>{ agendaSel.sucursalId = e.target.value; pintarSheet(); };
+
+    $('#b-agendar-ok').onclick = ()=>{
+      const fecha = $('#ag-fecha').value, hora = $('#ag-hora').value;
+      if(!fecha || !hora){ toast('Elige fecha y hora.'); return; }
+      const nueva = nuevaOT();
+      nueva.estado = 'agendada';
+      nueva.agenda = {fecha, hora};
+      nueva.obra = $('#ag-obra').value.trim();
+      nueva.fechaVisita = fecha;
+
+      if(agendaSel.nuevo){
+        const nombre = $('#ag-nuevo-nombre').value.trim();
+        if(!nombre){ toast('Escribe el nombre del cliente nuevo.'); return; }
+        const nuevoCliente = {id:uid(), nombre, sucursales:[{id:uid(), nombre:'Casa matriz',
+          direccion: $('#ag-nuevo-direccion').value.trim(), encargado: $('#ag-nuevo-encargado').value.trim(), telefono:'', email:''}]};
+        db.clientes.push(nuevoCliente);
+        nueva.cliente = nombre; nueva.clienteId = nuevoCliente.id; nueva.sucursalId = nuevoCliente.sucursales[0].id;
+        nueva.direccion = nuevoCliente.sucursales[0].direccion; nueva.contactoObra = nuevoCliente.sucursales[0].encargado;
+        marcarClientes();
+      } else if(cliente){
+        nueva.cliente = cliente.nombre; nueva.clienteId = cliente.id;
+        if(sucursal){ nueva.sucursalId = sucursal.id; nueva.direccion = sucursal.direccion; nueva.contactoObra = sucursal.encargado; }
+      }
+      db.ots.push(nueva); S.otId = nueva.id;
+      save(); cerrarSheet();
+      irA('visitas');
+      toast(`${nueva.codigo} agendada para ${fechaCorta(fecha)} ${hora}.`);
     };
   }
 
@@ -1594,7 +2026,7 @@ async function pdfCombinado(ot){
     columnStyles:{0:{cellWidth:32, textColor:[130,130,134]}, 2:{cellWidth:28, textColor:[130,130,134]}},
     body:[
       ['OT', ot.codigo, 'Visita', fechaCorta(ot.fechaVisita)],
-      ['Mandante', ot.mandante||'—', 'Levantó', ot.levantoPor||'—'],
+      ['Cliente', ot.cliente||'—', 'Levantó', ot.levantoPor||'—'],
       ['Ubicación', [ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—',
        'Coordenadas', ot.gps ? `${ot.gps.lat.toFixed(4)}, ${ot.gps.lon.toFixed(4)}` : '—'],
       ['Partidas', String(c.partidas), 'Registro', `${c.fotos} fotografías · ${c.recintos} recintos`]
@@ -1642,18 +2074,27 @@ async function pdfCombinado(ot){
     const codes = {}; todosItems(ot).forEach(({item})=> codes[item.id] = item.code);
     const recs = await Promise.all(fotos.map(f=> photoGet(f.id)));
     const colW = 56, gap = 5, maxH = 42;
-    let col = 0, top = y;
-    for(let i=0;i<fotos.length;i++){
-      const rec = recs[i]; if(!rec) continue;
-      let w = colW, h = w * (rec.h/rec.w);
-      if(h > maxH){ h = maxH; w = h * (rec.w/rec.h); }
-      const x = M + col*(colW+gap);
-      if(col === 0 && top + maxH + 12 > 280){ doc.addPage(); top = 20; }
-      try{ doc.addImage(rec.full, 'JPEG', x, top, w, h); }catch(err){}
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,124);
-      doc.text(`${fotos[i].label} · ${codes[fotos[i].itemId]||''}`, x, top + maxH + 3.5);
-      col++;
-      if(col === 3){ col = 0; top += maxH + 9; }
+    let top = y;
+    for(let i=0; i<fotos.length; i+=3){
+      const fila = []; for(let j=i; j<Math.min(i+3, fotos.length); j++) fila.push(j);
+      let extra = 0;
+      const wraps = fila.map(j=>{
+        const w = fotos[j].caption ? doc.splitTextToSize(fotos[j].caption, colW) : [];
+        extra = Math.max(extra, w.length);
+        return w;
+      });
+      if(top + maxH + 12 + extra*3.2 > 280){ doc.addPage(); top = 20; }
+      fila.forEach((j, col)=>{
+        const rec = recs[j]; if(!rec) return;
+        let w = colW, h = w * (rec.h/rec.w);
+        if(h > maxH){ h = maxH; w = h * (rec.w/rec.h); }
+        const x = M + col*(colW+gap);
+        try{ doc.addImage(rec.full, 'JPEG', x, top, w, h); }catch(err){}
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,124);
+        doc.text(`${fotos[j].label} · ${codes[fotos[j].itemId]||''}`, x, top + maxH + 3.5);
+        wraps[col].forEach((line,li)=> doc.text(line, x, top + maxH + 3.5 + 3.2*(li+1)));
+      });
+      top += maxH + 9 + extra*3.2;
     }
   }
 
@@ -1664,7 +2105,7 @@ async function pdfCombinado(ot){
     startY: y, theme:'plain', styles:{fontSize:9, cellPadding:1.3, textColor:[45,47,50]},
     columnStyles:{0:{cellWidth:32, textColor:[130,130,134]}, 2:{cellWidth:28, textColor:[130,130,134]}},
     body:[
-      ['Mandante', ot.mandante||'—', 'Cotización', ot.cot.numero||'—'],
+      ['Cliente', ot.cliente||'—', 'Cotización', ot.cot.numero||'—'],
       ['Obra', ot.obra||'—', 'Validez', db.params.validezDias + ' días'],
       ['Ubicación', [ot.direccion, ot.comuna].filter(Boolean).join(', ')||'—',
        'Plazo', (ot.cot.plazoDias||db.params.plazoDias) + ' días hábiles']
@@ -1688,7 +2129,7 @@ async function pdfCombinado(ot){
   doc.setTextColor(242,242,243); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   const filas = [['Neto partidas', money(r.neto)],
                  [`Gastos generales ${Math.round(db.params.gg*100)}%`, money(r.gg)],
-                 [`Utilidad ${Math.round(db.params.utilidad*100)}%`, money(r.utilidad)],
+                 [`Utilidad ${fmtPct(r.utilidadPct)}%`, money(r.utilidad)],
                  [`IVA ${Math.round(db.params.iva*100)}%`, money(r.iva)]];
   filas.forEach((f,i)=>{
     doc.text(f[0], 114, y + 7 + i*5);
@@ -1740,7 +2181,7 @@ function exportarExcel(ot){
     UNIDADES[l.item.unidad]||l.item.unidad, +l.cantidad.toFixed(3), l.pu, Math.round(l.total)]));
   cot.push([], ['','','','','','Neto partidas', Math.round(r.neto)],
     ['','','','','',`Gastos generales ${Math.round(db.params.gg*100)}%`, Math.round(r.gg)],
-    ['','','','','',`Utilidad ${Math.round(db.params.utilidad*100)}%`, Math.round(r.utilidad)],
+    ['','','','','',`Utilidad ${fmtPct(r.utilidadPct)}%`, Math.round(r.utilidad)],
     ['','','','','',`IVA ${Math.round(db.params.iva*100)}%`, Math.round(r.iva)],
     ['','','','','','TOTAL CON IVA', Math.round(r.total)]);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cot), 'Cotización');
@@ -1778,8 +2219,9 @@ async function importarJSON(file){
 /* ═══════════ ARRANQUE ═══════════ */
 $$('nav.roles button').forEach(b=> b.onclick = ()=> setRol(b.dataset.rol));
 $('#overlay-tap').onclick = cerrarSheet;
+$('#btn-config').onclick = abrirConfig;
 $('#netchip').onclick = ()=>{
-  if(!NUBE.token){ setRol('oficina'); toast('Entra con tu cuenta en Oficina.'); return; }
+  if(!NUBE.token){ abrirConfig(); toast('Entra con tu cuenta en Configuración.'); return; }
   sincronizar(true);
 };
 window.addEventListener('online', ()=> sincronizar());
