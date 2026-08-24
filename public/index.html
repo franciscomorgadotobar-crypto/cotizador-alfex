@@ -1542,14 +1542,20 @@ async function pintarCuenta(){
 async function pintarPersonas(){
   const box = $('#personas-box'); if(!box) return;
   let usuarios = [];
-  try{ usuarios = await api('usuarios'); }catch(e){ box.innerHTML=''; return; }
+  try{ usuarios = await api('usuarios'); }
+  catch(e){
+    box.innerHTML = `<p class="sub" style="margin:0;color:var(--color-accent-700)">No se pudo cargar la lista de usuarios.</p>
+      <button class="btn btn-ghost" id="b-reintentar-personas" style="font-size:12px">Reintentar</button>`;
+    $('#b-reintentar-personas').onclick = pintarPersonas;
+    return;
+  }
   box.innerHTML = `
-    <div class="cap" style="margin-bottom:6px">Personas con acceso</div>
+    <div class="cap" style="margin-bottom:6px">Usuarios activos (${usuarios.length})</div>
     <div style="display:flex;flex-direction:column;gap:6px">
-      ${usuarios.map(u=> `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+      ${usuarios.length ? usuarios.map(u=> `<div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
           <span style="flex:1">${esc(u.nombre)}${u.nombre===NUBE.nombre?' (tú)':''}</span>
           <button class="btn btn-ghost" data-delu="${u.id}" style="font-size:16px;padding:0 6px">×</button>
-        </div>`).join('')}
+        </div>`).join('') : '<p class="sub" style="margin:0">Todavía no hay nadie más con cuenta.</p>'}
     </div>
     <button class="btn btn-secondary btn-block" id="b-agregar-persona" style="font-size:12px;margin-top:8px">+ Agregar persona</button>
     <div id="agregar-persona-box"></div>`;
